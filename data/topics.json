@@ -1,0 +1,151 @@
+{
+  "$comment": "app-dev references 的归类规则。按顺序匹配 path 前缀，第一个命中生效。人工维护，改动后运行 scripts/build-refs.mjs 重新生成。",
+  "maxBlocksPerFile": 60,
+  "maxLinesPerBlock": 55,
+  "topics": [
+    {
+      "file": "bootstrap.md",
+      "title": "工程搭建与启动",
+      "summary": "从零建工程、Gradle 插件、@InfraApplication 启动模型、打包运行。",
+      "match": [
+        "modules/tutorial/",
+        "modules/application/",
+        "modules/gradle-plugin/"
+      ]
+    },
+    {
+      "file": "core-container.md",
+      "title": "IoC 容器",
+      "summary": "Bean 定义与依赖注入、作用域、生命周期、配置类、@Value、条件装配。",
+      "match": [
+        "modules/ROOT/pages/core/beans"
+      ]
+    },
+    {
+      "file": "core-runtime.md",
+      "title": "容器运行时与通用设施",
+      "summary": "资源加载、日志、空值安全、DataBuffer/编解码、AOT、XML Schema、整体架构。",
+      "match": [
+        "modules/ROOT/pages/core/resources",
+        "modules/ROOT/pages/core/logger",
+        "modules/ROOT/pages/core/null-safety",
+        "modules/ROOT/pages/core/databuffer-codec",
+        "modules/ROOT/pages/core/aot",
+        "modules/ROOT/pages/core/appendix",
+        "modules/ROOT/pages/architecture",
+        "modules/ROOT/pages/overview"
+      ]
+    },
+    {
+      "file": "core-aop.md",
+      "title": "AOP",
+      "summary": "切面、通知、切点、代理机制、@AspectJ 与编程式 API。",
+      "match": [
+        "modules/ROOT/pages/core/aop"
+      ]
+    },
+    {
+      "file": "core-expression.md",
+      "title": "表达式语言",
+      "summary": "SpEL 表达式解析、求值上下文、运算符与集合投影。",
+      "match": [
+        "modules/ROOT/pages/core/expressions"
+      ]
+    },
+    {
+      "file": "core-validation.md",
+      "title": "校验与类型转换",
+      "summary": "Validator、数据绑定、ConversionService、Formatter、Bean Validation。",
+      "match": [
+        "modules/ROOT/pages/core/validation"
+      ]
+    },
+    {
+      "file": "web-mvc.md",
+      "title": "Web MVC",
+      "summary": "控制器、请求映射、方法参数与返回值、异常处理、MVC 配置、Netty 配置。",
+      "match": [
+        "modules/ROOT/pages/web/webmvc/"
+      ]
+    },
+    {
+      "file": "web-mvc-advanced.md",
+      "title": "Web MVC 进阶",
+      "summary": "函数式端点、CORS、URI 构建、异步请求、视图技术、REST 客户端。",
+      "match": [
+        "modules/ROOT/pages/web/webmvc-functional",
+        "modules/ROOT/pages/web/webmvc-cors",
+        "modules/ROOT/pages/web/webmvc-versioning",
+        "modules/ROOT/pages/web/webmvc-view",
+        "modules/ROOT/pages/web/webmvc-client",
+        "modules/ROOT/pages/web/webmvc-test"
+      ]
+    },
+    {
+      "file": "web-session-websocket.md",
+      "title": "会话与 WebSocket",
+      "summary": "HTTP Session 管理、WebSocket 服务端与降级。",
+      "match": [
+        "modules/ROOT/pages/web/session",
+        "modules/ROOT/pages/web/websocket"
+      ]
+    },
+    {
+      "file": "data-access.md",
+      "title": "JDBC 与数据访问",
+      "summary": "JdbcTemplate、行映射、参数处理、嵌入式数据库、DAO 支持。",
+      "match": [
+        "modules/ROOT/pages/data-access/jdbc",
+        "modules/ROOT/pages/data-access/dao",
+        "modules/ROOT/pages/data-access/oxm",
+        "modules/ROOT/pages/data-access/appendix"
+      ]
+    },
+    {
+      "file": "transaction.md",
+      "title": "事务管理",
+      "summary": "声明式与编程式事务、传播行为、回滚规则、事务事件。",
+      "match": [
+        "modules/ROOT/pages/data-access/transaction"
+      ]
+    },
+    {
+      "file": "persistence.md",
+      "title": "持久化与 ORM",
+      "summary": "实体管理、映射、分页、审计、批量与原生 SQL。",
+      "match": [
+        "modules/ROOT/pages/data-access/persistence",
+        "modules/ROOT/pages/data-access/orm"
+      ]
+    },
+    {
+      "file": "testing-context.md",
+      "title": "TestContext 测试框架",
+      "summary": "@InfraTest、上下文加载与缓存、属性源、事务测试、测试注解。",
+      "match": [
+        "modules/ROOT/pages/testing/annotations",
+        "modules/ROOT/pages/testing/testcontext-framework",
+        "modules/ROOT/pages/testing/index",
+        "modules/ROOT/pages/testing.adoc"
+      ]
+    },
+    {
+      "file": "testing-mvc.md",
+      "title": "Web 测试",
+      "summary": "MockMvc 服务端配置、请求执行与断言、WebTestClient。",
+      "match": [
+        "modules/ROOT/pages/testing/mvc-test-framework",
+        "modules/ROOT/pages/testing/webtestclient"
+      ]
+    },
+    {
+      "file": "integration.md",
+      "title": "集成能力",
+      "summary": "REST 客户端、缓存、调度、邮件、JMX、动态语言。",
+      "match": [
+        "modules/ROOT/pages/integration",
+        "modules/ROOT/pages/languages"
+      ]
+    }
+  ]
+}

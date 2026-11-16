@@ -1,6 +1,6 @@
 ---
 name: infra-app-dev
-description:
+description: >-
   Use when building, extending, or debugging an application on TODAY Infrastructure (Java framework; Maven coordinates cn.taketoday, Java packages infra.*): bootstrapping a project, @InfraApplication, controllers and request mapping, dependency injection, transactions, JDBC, validation, @InfraTest/MockMvc/WebTestClient, and the infra.application Gradle plugin. 使用 TODAY Infrastructure 编写业务应用时使用。
 ---
 

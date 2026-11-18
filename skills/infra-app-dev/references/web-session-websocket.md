@@ -79,7 +79,7 @@ public interface SessionAttributeListener extends EventListener {
 
 ### 概述
 
-在公共互联网上，限制性代理可能会阻止 WebSocket 交互，要么是因为它们未配置为传递 Upgrade 标头，要么是因为它们关闭看起来处于空闲状态的长连接。 解决此问题的方法是 WebSocket 模拟 -- 即首先尝试使用 WebSocket，然后退回到模拟 WebSocket 交互并公开相同应用级别 API 的基于 HTTP 的技术。
+在公共互联网上，限制性代理可能会阻止 WebSocket 交互，要么是因为它们未配置为传递 Upgrade 标头，要么是因为它们关闭看起来处于空闲状态的长连接。 解决此问题的方法是 WebSocket 模拟 -- 即首先尝试使用 WebSocket，然后退回到模拟 WebSocket 交互并公开相同应用级别 API 的基于 HTTP 的技术。 当前框架的 WebSocketHandlerRegistry 不提供 SockJS 注册 API，也没有内置的 SockJS HTTP 传输实现。 如需长轮询或其他 HTTP 回退方案，需要由应用自行实现或集成其他服务；不能仅通过配置 WebSocket 处理器启用。
 
 ## WebSocket API
 
@@ -105,16 +105,37 @@ public class MyHandler extends TextWebSocketHandler {
 
 #### WebSocket 握手
 
-通过 HandshakeInterceptor 是定制初始 HTTP WebSocket 握手请求的最简单方法，它公开了 "before" 和 "after" 握手的方法。 您可以使用此类拦截器来阻止握手或使任何属性可用于 WebSocketSession。 以下示例使用内置拦截器将 HTTP 会话属性传递到 WebSocket 会话：
+通过 HandshakeInterceptor 是定制初始 HTTP WebSocket 握手请求的最简单方法，它公开了 "before" 和 "after" 握手的方法。 您可以使用此类拦截器来阻止握手或使任何属性可用于 WebSocketSession。 以下示例实现 infra.web.socket.server.HandshakeInterceptor，将自定义属性传递到 WebSocket 会话：
 
 ```java
+import java.util.Map;
+
+import org.jspecify.annotations.Nullable;
+
+import infra.web.HttpContext;
+import infra.web.socket.WebSocketHandler;
+import infra.web.socket.server.HandshakeInterceptor;
+
 @Configuration
 public class WebSocketConfiguration implements WebSocketConfigurer {
 
   @Override
   public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-    registry.addHandler(new MyHandler(), "/myHandler");
-    //.addInterceptors(new SessionHandshakeInterceptor());
+    registry.addHandler(new MyHandler(), "/myHandler")
+      .addInterceptors(new HandshakeInterceptor() {
+        @Override
+        public boolean beforeHandshake(HttpContext request, WebSocketHandler handler,
+            Map<String, Object> attributes) {
+          attributes.put("channel", "notifications");
+          return true;
+        }
+
+        @Override
+        public void afterHandshake(HttpContext request, WebSocketHandler handler,
+            @Nullable Throwable exception) {
+          // 握手完成或失败后的处理
+        }
+      });
   }
 
 }
@@ -122,7 +143,7 @@ public class WebSocketConfiguration implements WebSocketConfigurer {
 
 #### 允许的来源
 
-WebSocket 和 SockJS 的默认行为是仅接受同源请求。 也可以允许所有或指定的一组来源。 此检查主要设计用于浏览器客户端。 没有任何阻止其他类型的客户端修改 Origin 标头值（有关详细信息，请参见 RFC 6454: The Web Origin Concept）。 三种可能的行为是： 并且禁用了 JSONP 传输，因为它不允许检查请求的来源。因此，当启用此模式时，不支持 IE6 和 IE7。 在此模式下，所有传输都可用。 您可以配置 WebSocket 和 SockJS 允许的来源，如下例所示：
+通过 WebSocketHandlerRegistry 注册的 WebSocket 处理器默认仅接受同源请求。 也可以允许所有或指定的一组来源。 此检查主要设计用于浏览器客户端。 没有任何阻止其他类型的客户端修改 Origin 标头值（有关详细信息，请参见 RFC 6454: The Web Origin Concept）。 三种可能的行为是： 您可以配置 WebSocket 允许的来源，如下例所示：
 
 ---
 

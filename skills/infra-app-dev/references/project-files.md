@@ -4,7 +4,7 @@
 > 只保留 `infra-docs` 未覆盖的内容（README、CONTRIBUTING、infra-samples 等）；
 > 文档正文的权威来源仍是 `infra-docs`，本文件用于补齐“项目怎么跑起来”这类信息。
 
-条目 9 个（跳过：已在 infra-docs 覆盖 74、输出/占位 0、无代码 0）。
+条目 9 个（跳过：已在 infra-docs 覆盖 78、输出/占位 0、无代码 0）。
 
 ## `CONTRIBUTING.md`
 
@@ -23,9 +23,9 @@ cd today-infrastructure
 
 ## `README.md`
 
-### 创建最小 HTTP 接口 (DemoApplication.java)
+### Minimal HTTP application with @InfraApplication and @RestController
 
-创建应用入口和控制器，使用 @InfraApplication、@RestController、@GET 注解。运行环境 JDK 17+。
+Create a minimal HTTP interface in src/main/java/example/DemoApplication.java. Uses infra-starter-webmvc and infra-starter-netty-server, requires JDK 17+. The @InfraApplication enables component scanning and auto-configuration; @GET maps GET requests to the method.
 
 ```java
 package example;
@@ -50,9 +50,43 @@ public class DemoApplication {
 }
 ```
 
-### 子模块 build.gradle 应用插件
+### Curl request to sample index endpoint
 
-使用上述任一配置后，子模块可应用 'infra.application' 插件。包含依赖 infra-starter-netty-server 和 infra-starter-webmvc。
+After the service starts, run this curl command in another terminal to test the index endpoint. Expected response is 'Hello'.
+
+```bash
+curl http://localhost:8080/index
+```
+
+### Start the application with infraRun
+
+Run the application from the project root using Gradle. Requires Gradle Wrapper and the infra.application plugin. Use gradlew.bat on Windows. Alternatively, run DemoApplication.main() in the IDE with --server.port=8080 as a program argument.
+
+```bash
+./gradlew infraRun --args='--server.port=8080'
+```
+
+### Clone and run the sample application
+
+Commands to clone the repository and run the sample application with Gradle. Requires Git and JDK; Gradle downloads dependencies on first run. Use gradlew.bat on Windows.
+
+```bash
+git clone https://github.com/TAKETODAY/today-infrastructure.git
+cd today-infrastructure/infra-samples
+./gradlew infraRun --args='--server.port=8080'
+```
+
+### Curl request to hello endpoint
+
+After the service starts, run this curl command in another terminal to verify the hello endpoint. Expected response is 'Hello, TODAY!'.
+
+```bash
+curl http://localhost:8080/hello
+```
+
+### Submodule build.gradle applying infra.application plugin
+
+After using either of the above configurations, submodules can apply the 'infra.application' plugin. Includes repositories and dependencies for infra-starter-netty-server and infra-starter-webmvc.
 
 ```groovy
 apply plugin: "java"
@@ -71,45 +105,9 @@ dependencies {
 }
 ```
 
-### 克隆并运行示例 (bash)
+### 复现性能测试（JVM 模式）
 
-直接运行 infra-samples 示例，无需手动创建工程。需要 Git 和 JDK，首次运行 Gradle 会下载依赖。Windows 使用 gradlew.bat。
-
-```bash
-git clone https://github.com/TAKETODAY/today-infrastructure.git
-cd today-infrastructure/infra-samples
-./gradlew infraRun --args='--server.port=8080'
-```
-
-### 启动服务 (bash)
-
-在应用工程根目录执行，需要 Gradle Wrapper 和 infra.application 插件。Windows 使用 gradlew.bat。
-
-```bash
-./gradlew infraRun --args='--server.port=8080'
-```
-
-### Gradle 插件配置 (settings.gradle)
-
-一般项目方式，在 settings.gradle 中配置 classpath。与 buildSrc 方式二选一。
-
-```groovy
-buildscript {
-  repositories {
-    mavenLocal()
-    maven { url = "https://central.sonatype.com/repository/maven-snapshots/" }
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath "cn.taketoday:infra-gradle-plugin:$infraVersion"
-  }
-}
-```
-
-### 复现性能测试：JVM 模式压测命令
-
-用于复现 today-blog 带缓存分页查询 API 的压测。运行前需准备数据库、初始化数据、安装 wrk 并确认接口正常返回。包含克隆项目、启动应用（JVM 模式）、低并发延迟测试和高并发吞吐测试。Native Image 测试需额外记录 GraalVM 版本、构建参数和启动命令，此命令仅用于 JVM 模式。
+克隆 today-blog 示例项目，启动应用（JVM 模式），然后运行低并发和高并发 wrk 压测命令。运行前需准备数据库、初始化数据并安装 wrk。
 
 ```bash
 # 克隆示例项目
@@ -124,14 +122,6 @@ wrk -t2 -c10 -d30s --latency 'http://127.0.0.1:8080/api/articles?size=1'
 
 # 高并发吞吐测试
 wrk -t20 -c5000 -d1m --latency 'http://127.0.0.1:8080/api/articles?size=1'
-```
-
-### 验证接口 (curl + 响应)
-
-服务启动后，在另一个终端执行 curl 验证。预期响应为 'Hello, TODAY!'。
-
-```bash
-curl http://localhost:8080/hello
 ```
 
 ## `infra-samples/hello-cli/README.md`

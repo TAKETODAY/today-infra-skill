@@ -55,6 +55,50 @@ Creates the same setup as the previous example but uses pure XML declarative app
 
 --------------------------------
 
+### Minimal HTTP application with @InfraApplication and @RestController
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
+
+Create a minimal HTTP interface in src/main/java/example/DemoApplication.java. Uses infra-starter-webmvc and infra-starter-netty-server, requires JDK 17+. The @InfraApplication enables component scanning and auto-configuration; @GET maps GET requests to the method.
+
+```java
+package example;
+
+import infra.app.Application;
+import infra.app.InfraApplication;
+import infra.web.annotation.GET;
+import infra.web.annotation.RestController;
+
+@RestController
+@InfraApplication
+public class DemoApplication {
+
+  public static void main(String[] args) {
+    Application.run(DemoApplication.class, args);
+  }
+
+  @GET("/hello")
+  public String hello() {
+    return "Hello, TODAY!";
+  }
+}
+```
+
+--------------------------------
+
+### Example properties for constructor binding
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/external-config.adoc
+
+Example properties file that enables the service and sets the nested username. The password remains null and roles default to USER.
+
+```properties
+my.service.enabled=true
+my.service.security.username=admin
+```
+
+--------------------------------
+
 ### 传递系统属性：systemProperty 'com.example.property', findProperty('example') ?: 'default'
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/gradle-plugin/pages/running.adoc
@@ -65,6 +109,18 @@ Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs
 tasks.named("infraRun") {
   systemProperty 'com.example.property', findProperty('example') ?: 'default'
 }
+```
+
+--------------------------------
+
+### Output of MessageSource example
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/context-introduction.adoc
+
+Shows the console output produced by the preceding Java example.
+
+```text
+Ebagum lad, the 'userDao' argument is required, I say, required.
 ```
 
 --------------------------------
@@ -97,18 +153,6 @@ public class DemoApplication {
   }
 
 }
-```
-
---------------------------------
-
-### Output of MessageSource example
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/context-introduction.adoc
-
-Shows the console output produced by the preceding Java example.
-
-```text
-Ebagum lad, the 'userDao' argument is required, I say, required.
 ```
 
 --------------------------------
@@ -188,26 +232,6 @@ com/mycompany/package1/service-context.xml
 
 --------------------------------
 
-### Controller for link generation example
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-uri-building.adoc
-
-Example MVC controller with type-level and method-level request mappings, used to demonstrate link building to controller methods.
-
-```java
-@Controller
-@RequestMapping("/hotels/{hotel}")
-public class BookingController {
-
-  @GetMapping("/bookings/{booking}")
-  public ModelAndView getBooking(@PathVariable Long booking) {
-    // ...
-  }
-}
-```
-
---------------------------------
-
 ### 设置项目属性：./gradlew infraRun -Pexample=custom
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/gradle-plugin/pages/running.adoc
@@ -232,33 +256,15 @@ Shows the expected output of the queryForList example, a list of maps with colum
 
 --------------------------------
 
-### 创建最小 HTTP 接口 (DemoApplication.java)
+### Properties with placeholders and defaults
 
-Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/external-config.adoc
 
-创建应用入口和控制器，使用 @InfraApplication、@RestController、@GET 注解。运行环境 JDK 17+。
+Shows how to use placeholders like `${name}` and `${name:default}` in properties files. The example defines `my.name` and `my.description` that references `my.name` and a default for `username`.
 
-```java
-package example;
-
-import infra.app.Application;
-import infra.app.InfraApplication;
-import infra.web.annotation.GET;
-import infra.web.annotation.RestController;
-
-@RestController
-@InfraApplication
-public class DemoApplication {
-
-  public static void main(String[] args) {
-    Application.run(DemoApplication.class, args);
-  }
-
-  @GET("/hello")
-  public String hello() {
-    return "Hello, TODAY!";
-  }
-}
+```properties
+my.name=MyApp
+my.description=${my.name} by ${username:Unknown}
 ```
 
 --------------------------------
@@ -285,6 +291,25 @@ Shows how to get a resource using an absolute path. This is equivalent to the re
 ```java
 FileSystemXmlApplicationContext ctx = ...;
 ctx.getResource("/some/resource/path/myTemplate.txt");
+```
+
+--------------------------------
+
+### YAML configuration for MyProperties
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/external-config.adoc
+
+Example YAML configuration that binds to a properties class with nested security settings and roles list.
+
+```yaml
+my:
+  service:
+    remote-address: 192.168.1.1
+    security:
+      username: "admin"
+      roles:
+        - "USER"
+        - "ADMIN"
 ```
 
 --------------------------------
@@ -321,6 +346,18 @@ class MyWebTests {
   // ...
 
 }
+```
+
+--------------------------------
+
+### Curl request to sample index endpoint
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
+
+After the service starts, run this curl command in another terminal to test the index endpoint. Expected response is 'Hello'.
+
+```bash
+curl http://localhost:8080/index
 ```
 
 --------------------------------
@@ -370,26 +407,47 @@ class MyWebTests {
 
 --------------------------------
 
-### 子模块 build.gradle 应用插件
+### Start the application with infraRun
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
 
-使用上述任一配置后，子模块可应用 'infra.application' 插件。包含依赖 infra-starter-netty-server 和 infra-starter-webmvc。
+Run the application from the project root using Gradle. Requires Gradle Wrapper and the infra.application plugin. Use gradlew.bat on Windows. Alternatively, run DemoApplication.main() in the IDE with --server.port=8080 as a program argument.
 
-```groovy
-apply plugin: "java"
-apply plugin: 'infra.application'
+```bash
+./gradlew infraRun --args='--server.port=8080'
+```
 
-repositories {
-  mavenLocal()
-  maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
-  maven { url "https://maven.aliyun.com/repository/public" }
-  mavenCentral()
-}
+--------------------------------
 
-dependencies {
-  implementation 'cn.taketoday:infra-starter-netty-server'
-  implementation 'cn.taketoday:infra-starter-webmvc'
+### Clone and run the sample application
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
+
+Commands to clone the repository and run the sample application with Gradle. Requires Git and JDK; Gradle downloads dependencies on first run. Use gradlew.bat on Windows.
+
+```bash
+git clone https://github.com/TAKETODAY/today-infrastructure.git
+cd today-infrastructure/infra-samples
+./gradlew infraRun --args='--server.port=8080'
+```
+
+--------------------------------
+
+### BookingController with @GET mapping
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-uri-building.adoc
+
+Example MVC controller with a method mapped to /bookings/{booking}. Used to demonstrate building links to controller methods.
+
+```java
+@Controller
+@RequestMapping("/hotels/{hotel}")
+public class BookingController {
+
+  @GET("/bookings/{booking}")
+  public ModelAndView getBooking(@PathVariable Long booking) {
+    // ...
+  }
 }
 ```
 
@@ -453,18 +511,18 @@ Shows how to commit a transaction explicitly using TestTransaction.flagForCommit
 
 --------------------------------
 
-### Using @ResponseBody on a controller method
+### Test streaming responses with FluxExchangeResult
 
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-controller/ann-methods/responsebody.adoc
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/testing/webtestclient.adoc
 
-Annotate a controller method with @ResponseBody to serialize the return value to the response body via an HttpMessageConverter. This example shows a GET mapping for an account resource.
+For potentially infinite streams like text/event-stream or application/x-ndjson, first verify status and headers, then get a FluxExchangeResult. The example accepts TEXT_EVENT_STREAM and returns a FluxExchangeResult<MyEvent>.
 
 ```java
-@GetMapping("/accounts/{id}")
-@ResponseBody
-public Account handle() {
-  // ...
-}
+FluxExchangeResult<MyEvent> result = client.get().uri("/events")
+    .accept(TEXT_EVENT_STREAM)
+    .exchange()
+    .expectStatus().isOk()
+    .returnResult(MyEvent.class);
 ```
 
 --------------------------------
@@ -482,86 +540,6 @@ try (StartupStep scanPackages = getApplicationStartup().start("infra.context.bas
   scanPackages.tag("packages", () -> Arrays.toString(basePackages));
   // 执行我们要插桩的实际阶段
   this.scanner.scan(basePackages);
-}
-```
-
---------------------------------
-
-### Test streaming responses with FluxExchangeResult
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/testing/webtestclient.adoc
-
-For potentially infinite streams like text/event-stream or application/x-ndjson, first verify status and headers, then get a FluxExchangeResult. The example accepts TEXT_EVENT_STREAM and returns a FluxExchangeResult<MyEvent>.
-
-```java
-FluxExchangeResult<MyEvent> result = client.get().uri("/events")
-    .accept(TEXT_EVENT_STREAM)
-    .exchange()
-    .expectStatus().isOk()
-    .returnResult(MyEvent.class);
-```
-
---------------------------------
-
-### RouterFunctions.route() builder example
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc-functional.adoc
-
-Shows how to create a RouterFunction using the route() builder, registering GET and POST endpoints with a PersonHandler. The handler class is included to show the referenced methods.
-
-```java
-import static infra.http.MediaType.APPLICATION_JSON;
-import static infra.web.handler.function.ReqestPredicates.*;
-import static infra.web.handler.function.RouterFunctions.route;
-
-PersonRepository repository = ...
-PersonHandler handler = new PersonHandler(repository);
-
-RouterFunction<ServerResponse> route = route() // <1>
-  .GET("/person/{id}", accept(APPLICATION_JSON), handler::getPerson)
-  .GET("/person", accept(APPLICATION_JSON), handler::listPeople)
-  .POST("/person", handler::createPerson)
-  .build();
-
-
-public class PersonHandler {
-
-  // ...
-
-  public ServerResponse listPeople(ServerRequest request) {
-    // ...
-  }
-
-  public ServerResponse createPerson(ServerRequest request) {
-    // ...
-  }
-
-  public ServerResponse getPerson(ServerRequest request) {
-    // ...
-  }
-}
-```
-
---------------------------------
-
-### ExampleBean with @ConstructorProperties annotation
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/dependencies/factory-collaborators.adoc
-
-Example class using the JDK @ConstructorProperties annotation to explicitly name constructor parameters, allowing name-based matching without debug flags.
-
-```java
-package examples;
-
-public class ExampleBean {
-
-  // 字段省略
-
-  @ConstructorProperties({"years", "ultimateAnswer"})
-  public ExampleBean(int years, String ultimateAnswer) {
-    this.years = years;
-    this.ultimateAnswer = ultimateAnswer;
-  }
 }
 ```
 
@@ -590,16 +568,85 @@ The path attribute follows the form beanName.beanProperty. This example gets the
 
 --------------------------------
 
-### 克隆并运行示例 (bash)
+### ExampleBean with @ConstructorProperties annotation
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/dependencies/factory-collaborators.adoc
+
+Example class using the JDK @ConstructorProperties annotation to explicitly name constructor parameters, allowing name-based matching without debug flags.
+
+```java
+package examples;
+
+public class ExampleBean {
+
+  // 字段省略
+
+  @ConstructorProperties({"years", "ultimateAnswer"})
+  public ExampleBean(int years, String ultimateAnswer) {
+    this.years = years;
+    this.ultimateAnswer = ultimateAnswer;
+  }
+}
+```
+
+--------------------------------
+
+### Use @ResponseBody on a controller method
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-controller/ann-methods/responsebody.adoc
+
+Annotate a controller method with @ResponseBody so the return value is serialized to the response body by an HttpMessageConverter. The example shows a method handling GET /accounts/{id} and returning an Account object.
+
+```java
+@GET("/accounts/{id}")
+@ResponseBody
+public Account handle() {
+  // ...
+}
+```
+
+--------------------------------
+
+### Curl request to hello endpoint
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
 
-直接运行 infra-samples 示例，无需手动创建工程。需要 Git 和 JDK，首次运行 Gradle 会下载依赖。Windows 使用 gradlew.bat。
+After the service starts, run this curl command in another terminal to verify the hello endpoint. Expected response is 'Hello, TODAY!'.
 
 ```bash
-git clone https://github.com/TAKETODAY/today-infrastructure.git
-cd today-infrastructure/infra-samples
-./gradlew infraRun --args='--server.port=8080'
+curl http://localhost:8080/hello
+```
+
+--------------------------------
+
+### Scanning configuration properties with @ConfigurationPropertiesScan
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/external-config.adoc
+
+Shows how to use `@ConfigurationPropertiesScan` on a configuration class to scan for `@ConfigurationProperties` classes starting from the package of the configuration class.
+
+```java
+import infra.context.annotation.Configuration;
+import infra.context.properties.ConfigurationPropertiesScan;
+```
+
+--------------------------------
+
+### Declare a SQL group with @SqlGroup
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/testing/annotations/integration-infra/annotation-sqlgroup.adoc
+
+Use @SqlGroup to aggregate multiple @Sql annotations for a test method. The example declares two SQL scripts: one for schema setup with a custom comment prefix and one for user data. This is useful when you need to run multiple SQL scripts together for a test.
+
+```java
+@Test
+@SqlGroup({ // <1>
+  @Sql(scripts = "/test-schema.sql", config = @SqlConfig(commentPrefix = "`")),
+  @Sql("/test-user-data.sql")
+})
+void userTest() {
+  // 运行使用测试架构和测试数据的代码
+}
 ```
 
 --------------------------------
@@ -627,25 +674,6 @@ $ java -jar build/libs/xxx-0.0.1-SNAPSHOT.jar
 
 --------------------------------
 
-### Declare a SQL group with @SqlGroup
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/testing/annotations/integration-infra/annotation-sqlgroup.adoc
-
-Use @SqlGroup to aggregate multiple @Sql annotations for a test method. The example declares two SQL scripts: one for schema setup with a custom comment prefix and one for user data. This is useful when you need to run multiple SQL scripts together for a test.
-
-```java
-@Test
-@SqlGroup({ // <1>
-  @Sql(scripts = "/test-schema.sql", config = @SqlConfig(commentPrefix = "`")),
-  @Sql("/test-user-data.sql")
-})
-void userTest() {
-  // 运行使用测试架构和测试数据的代码
-}
-```
-
---------------------------------
-
 ### 使用 @ContextConfiguration 和 initializers 属性配置上下文初始化器
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/testing/testcontext-framework/ctx-management/initializers.adoc
@@ -667,13 +695,13 @@ class MyTest {
 
 --------------------------------
 
-### HTTP Cookie Example
+### Cookie value example: JSESSIONID=415A4AC178C59DACE0B2C9CA727CDD84
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-controller/ann-methods/cookievalue.adoc
 
-Example of a request cookie named JSESSIONID.
+Shows a request with the cookie JSESSIONID=415A4AC178C59DACE0B2C9CA727CDD84, used as the input for the @CookieValue example.
 
-```text
+```literal
 JSESSIONID=415A4AC178C59DACE0B2C9CA727CDD84
 ```
 
@@ -708,31 +736,6 @@ Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-samp
 
 --------------------------------
 
-### Combining routes with GET, POST, and add
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc-functional.adoc
-
-Builds a RouterFunction that routes GET /person/{id} and GET /person with JSON Accept header to handler methods, POST /person to createPerson, and adds another route function.
-
-```java
-import static infra.http.MediaType.APPLICATION_JSON;
-import static infra.web.handler.function.RequestPredicates.*;
-
-PersonRepository repository = ...
-PersonHandler handler = new PersonHandler(repository);
-
-RouterFunction<ServerResponse> otherRoute = ...
-
-RouterFunction<ServerResponse> route = route()
-  .GET("/person/{id}", accept(APPLICATION_JSON), handler::getPerson) // <1>
-  .GET("/person", accept(APPLICATION_JSON), handler::listPeople) // <2>
-  .POST("/person", handler::createPerson) // <3>
-  .add(otherRoute) // <4>
-  .build();
-```
-
---------------------------------
-
 ### 使用 @ComponentScan 自动检测组件
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/classpath-scanning.adoc
@@ -745,40 +748,6 @@ Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs
 public class AppConfig  {
   // ...
 }
-```
-
---------------------------------
-
-### IntroductionAdvisor and IntroductionInfo interfaces
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/aop-api/advice.adoc
-
-IntroductionAdvisor extends Advisor and IntroductionInfo, providing getClassFilter() and validateInterfaces(). IntroductionInfo provides getInterfaces(). No MethodMatcher or Pointcut is associated with introduction advice.
-
-```java
-public interface IntroductionAdvisor extends Advisor, IntroductionInfo {
-
-  ClassFilter getClassFilter();
-
-  void validateInterfaces() throws IllegalArgumentException;
-}
-
-public interface IntroductionInfo {
-
-  Class<?>[] getInterfaces();
-}
-```
-
---------------------------------
-
-### 启动服务 (bash)
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
-
-在应用工程根目录执行，需要 Gradle Wrapper 和 infra.application 插件。Windows 使用 gradlew.bat。
-
-```bash
-./gradlew infraRun --args='--server.port=8080'
 ```
 
 --------------------------------
@@ -917,16 +886,82 @@ java -jar build/libs/hello-cli-0.0.1-SNAPSHOT.jar --cli.greeting=你好 Alice
 
 --------------------------------
 
-### RouterFunction with GET and accept predicate
+### Properties: PropertyOverrideConfigurer format example
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/factory-extension.adoc
+
+Property file lines use the format beanName.property=value. This example overrides driverClassName and url for a bean named dataSource. Overridden values are always literal; they are not converted to bean references.
+
+```properties
+dataSource.driverClassName=com.mysql.jdbc.Driver
+dataSource.url=jdbc:mysql:mydb
+```
+
+--------------------------------
+
+### Submodule build.gradle applying infra.application plugin
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
+
+After using either of the above configurations, submodules can apply the 'infra.application' plugin. Includes repositories and dependencies for infra-starter-netty-server and infra-starter-webmvc.
+
+```groovy
+apply plugin: "java"
+apply plugin: 'infra.application'
+
+repositories {
+  mavenLocal()
+  maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
+  maven { url "https://maven.aliyun.com/repository/public" }
+  mavenCentral()
+}
+
+dependencies {
+  implementation 'cn.taketoday:infra-starter-netty-server'
+  implementation 'cn.taketoday:infra-starter-webmvc'
+}
+
+```
+
+--------------------------------
+
+### Build RouterFunction with route() and add()
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc-functional.adoc
 
-Creates a route for GET /hello-world that matches when the Accept header is text/plain, returning a response with the body "Hello World".
+Constructs a RouterFunction with GET, POST, and add() to combine routes. Uses RequestPredicates.accept(APPLICATION_JSON) for GET routes. The add() method includes otherRoute built elsewhere.
 
 ```java
-RouterFunction<ServerResponse> route = RouterFunctions.route()
-  .GET("/hello-world", accept(MediaType.TEXT_PLAIN),
-    request -> ServerResponse.ok().body("Hello World")).build();
+import static infra.http.MediaType.APPLICATION_JSON;
+import static infra.web.handler.function.RequestPredicates.accept;
+import static infra.web.handler.function.RouterFunctions.route;
+
+PersonRepository repository = ...
+PersonHandler handler = new PersonHandler(repository);
+
+RouterFunction<ServerResponse> otherRoute = ...
+
+RouterFunction<ServerResponse> route = route()
+  .GET("/person/{id}", accept(APPLICATION_JSON), handler::getPerson) // <1>
+  .GET("/person", accept(APPLICATION_JSON), handler::listPeople) // <2>
+  .POST("/person", handler::createPerson) // <3>
+  .add(otherRoute) // <4>
+  .build();
+```
+
+--------------------------------
+
+### Narrow Mapping by Request Header with headers
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-controller/ann-requestmapping.adoc
+
+Use the `headers` attribute to test request header conditions. This example checks that `myHeader` equals `myValue`. For matching `Content-Type` and `Accept`, prefer `consumes` and `produces`.
+
+```java
+@GET(path = "/pets/{petId}", headers = "myHeader=myValue") // <1>
+public void findPet(@PathVariable String petId) {
+  // ...
+}
 ```
 
 --------------------------------
@@ -950,41 +985,6 @@ public final class Boot {
     System.out.println(messenger);
   }
 
-}
-```
-
---------------------------------
-
-### Properties: PropertyOverrideConfigurer format example
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/factory-extension.adoc
-
-Property file lines use the format beanName.property=value. This example overrides driverClassName and url for a bean named dataSource. Overridden values are always literal; they are not converted to bean references.
-
-```properties
-dataSource.driverClassName=com.mysql.jdbc.Driver
-dataSource.url=jdbc:mysql:mydb
-```
-
---------------------------------
-
-### Gradle 插件配置 (settings.gradle)
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
-
-一般项目方式，在 settings.gradle 中配置 classpath。与 buildSrc 方式二选一。
-
-```groovy
-buildscript {
-  repositories {
-    mavenLocal()
-    maven { url = "https://central.sonatype.com/repository/maven-snapshots/" }
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath "cn.taketoday:infra-gradle-plugin:$infraVersion"
-  }
 }
 ```
 
@@ -1043,20 +1043,6 @@ public class HelloController {
 
 --------------------------------
 
-### 添加 infra-starter-netty-server 依赖
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-core/netty-config.adoc
-
-在 Gradle 构建脚本中声明 Netty 嵌入式服务器启动器依赖。
-
-```groovy
-dependencies {
-  implementation 'cn.taketoday:infra-starter-netty-server'
-}
-```
-
---------------------------------
-
 ### RestTemplate.getForEntity
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/integration/rest-clients.adoc
@@ -1105,29 +1091,6 @@ rootProject.name = 'hello-cli'
 
 --------------------------------
 
-### 复现性能测试：JVM 模式压测命令
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
-
-用于复现 today-blog 带缓存分页查询 API 的压测。运行前需准备数据库、初始化数据、安装 wrk 并确认接口正常返回。包含克隆项目、启动应用（JVM 模式）、低并发延迟测试和高并发吞吐测试。Native Image 测试需额外记录 GraalVM 版本、构建参数和启动命令，此命令仅用于 JVM 模式。
-
-```bash
-# 克隆示例项目
-git clone https://github.com/TAKETODAY/today-blog
-cd today-blog
-
-# 启动应用（JVM 模式）
-./gradlew :blog-api:infraRun
-
-# 低并发延迟测试
-wrk -t2 -c10 -d30s --latency 'http://127.0.0.1:8080/api/articles?size=1'
-
-# 高并发吞吐测试
-wrk -t20 -c5000 -d1m --latency 'http://127.0.0.1:8080/api/articles?size=1'
-```
-
---------------------------------
-
 ### 在单个 YAML 文件中使用 Profile 专用配置
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/profiles.adoc
@@ -1148,28 +1111,17 @@ myapp:
 
 --------------------------------
 
-### RouterFunction with path, nest, GET, POST, and filter
+### Flattened properties from YAML
 
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc-functional.adoc
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/external-config.adoc
 
-Builds a RouterFunction that nests routes under /person, handles GET and POST requests, and applies a security filter that checks access before handling. The filter demonstrates optional next.handle(ServerRequest) invocation. CORS support for functional endpoints is provided by a dedicated CorsFilter.
+Shows the equivalent flattened properties for the YAML example above, using dot-separated keys.
 
-```java
-RouterFunction<ServerResponse> route = route()
-  .path("/person", b1 -> b1
-    .nest(accept(APPLICATION_JSON), b2 -> b2
-      .GET("/{id}", handler::getPerson)
-      .GET(handler::listPeople))
-    .POST(handler::createPerson))
-  .filter((request, next) -> {
-    if (securityManager.allowAccessTo(request.path())) {
-      return next.handle(request);
-    }
-    else {
-      return ServerResponse.status(UNAUTHORIZED).build();
-    }
-  })
-  .build();
+```properties
+environments.dev.url=https://dev.example.com
+environments.dev.name=Developer Setup
+environments.prod.url=https://another.example.com
+environments.prod.name=My Cool App
 ```
 
 --------------------------------
@@ -1187,6 +1139,23 @@ Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs
     <tx:method name="*"/>
   </tx:attributes>
 </tx:advice>
+```
+
+--------------------------------
+
+### 克隆仓库并构建
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/CONTRIBUTING.md
+
+克隆你的Fork仓库并使用Gradle Wrapper构建项目。构建工具链使用JDK 25，发布制品兼容Java 17及以上版本。
+
+```bash
+git clone https://github.com/YOUR_USERNAME/today-infrastructure.git
+cd today-infrastructure
+```
+
+```bash
+./gradlew build
 ```
 
 --------------------------------
@@ -1222,19 +1191,31 @@ String invention = parser.parseExpression("members[0].inventions[6]").getValue(
 
 --------------------------------
 
-### 克隆仓库并构建
+### 添加 infra-starter-netty-server 依赖 (Groovy)
 
-Source: https://github.com/taketoday/today-infrastructure/blob/master/CONTRIBUTING.md
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-core/netty-config.adoc
 
-克隆你的Fork仓库并使用Gradle Wrapper构建项目。构建工具链使用JDK 25，发布制品兼容Java 17及以上版本。
+在 Gradle 构建脚本中添加 Netty 嵌入式服务器启动器依赖。
 
-```bash
-git clone https://github.com/YOUR_USERNAME/today-infrastructure.git
-cd today-infrastructure
+```groovy
+dependencies {
+  implementation 'cn.taketoday:infra-starter-netty-server'
+}
 ```
 
-```bash
-./gradlew build
+--------------------------------
+
+### jdbc.properties file (duplicate)
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/java/composing-configuration-classes.adoc
+
+Properties file with JDBC connection settings, shown again in the @ImportResource example.
+
+```properties
+jdbc.properties
+jdbc.url=jdbc:hsqldb:hsql://localhost/xdb
+jdbc.username=sa
+jdbc.password=
 ```
 
 --------------------------------
@@ -1255,21 +1236,6 @@ hello-cli/
     │   └── GreetingService.java
     └── resources/
         └── application.properties
-```
-
---------------------------------
-
-### jdbc.properties file (duplicate)
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/java/composing-configuration-classes.adoc
-
-Properties file with JDBC connection settings, shown again in the @ImportResource example.
-
-```properties
-jdbc.properties
-jdbc.url=jdbc:hsqldb:hsql://localhost/xdb
-jdbc.username=sa
-jdbc.password=
 ```
 
 --------------------------------
@@ -1336,16 +1302,25 @@ tasks.named("infraJar") {
 
 --------------------------------
 
-### 启用 BuildInfo 任务 (Groovy)
+### 复现性能测试（JVM 模式）
 
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/gradle-plugin/pages/build-info.adoc
+Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
 
-通过插件的 DSL 配置一个名为 infraBuildInfo 的 BuildInfo 任务，并在 Java 插件的 classes 任务存在时使其依赖于该任务。生成的文件位于主源集资源输出目录下的 META-INF 目录。
+克隆 today-blog 示例项目，启动应用（JVM 模式），然后运行低并发和高并发 wrk 压测命令。运行前需准备数据库、初始化数据并安装 wrk。
 
-```groovy
-infraApplication {
-  enableBuildInfo()
-}
+```bash
+# 克隆示例项目
+git clone https://github.com/TAKETODAY/today-blog
+cd today-blog
+
+# 启动应用（JVM 模式）
+./gradlew :blog-api:infraRun
+
+# 低并发延迟测试
+wrk -t2 -c10 -d30s --latency 'http://127.0.0.1:8080/api/articles?size=1'
+
+# 高并发吞吐测试
+wrk -t20 -c5000 -d1m --latency 'http://127.0.0.1:8080/api/articles?size=1'
 ```
 
 --------------------------------
@@ -1363,6 +1338,33 @@ public interface Calculator {
 
   int add(int x, int y);
 }
+```
+
+--------------------------------
+
+### 启用 BuildInfo 任务 (Groovy)
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/gradle-plugin/pages/build-info.adoc
+
+通过插件的 DSL 配置一个名为 infraBuildInfo 的 BuildInfo 任务，并在 Java 插件的 classes 任务存在时使其依赖于该任务。生成的文件位于主源集资源输出目录下的 META-INF 目录。
+
+```groovy
+infraApplication {
+  enableBuildInfo()
+}
+```
+
+--------------------------------
+
+### exceptions.properties example
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/context-introduction.adoc
+
+Defines a message key 'argument.required' with a placeholder {0} for the argument name. Used for parameterized messages.
+
+```properties
+# in exceptions.properties
+argument.required=The {0} argument is required.
 ```
 
 --------------------------------
@@ -1385,24 +1387,11 @@ class MyTest {
 
 --------------------------------
 
-### exceptions.properties example
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/context-introduction.adoc
-
-Defines a message key 'argument.required' with a placeholder {0} for the argument name. Used for parameterized messages.
-
-```properties
-# in exceptions.properties
-argument.required=The {0} argument is required.
-```
-
---------------------------------
-
 ### 类级别和方法级别的 @RequestMapping 示例
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-controller/ann-requestmapping.adoc
 
-展示在类级别使用 @RequestMapping 表达共享映射，在方法级别使用 @GET 和 @POST 缩小到特定端点。注意 @RequestMapping 不能与同一元素上的其他 @RequestMapping 注解一起使用。
+展示在类级别使用 @RequestMapping 表达共享映射，在方法级别使用 @GET 和 @POST 快捷方式。注意 @RequestMapping 不能与同一元素上的其他 @RequestMapping 注解共存，否则只使用第一个映射。
 
 ```java
 @RestController
@@ -1436,20 +1425,6 @@ The userDao argument is required.
 
 --------------------------------
 
-### 通过 plugins 块应用插件 (Groovy)
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/gradle-plugin/pages/getting-started.adoc
-
-在 Gradle 插件门户发布后，使用 plugins 块应用 cn.taketoday.application 插件。版本号由 {gradle-project-version} 占位符表示。
-
-```groovy
-plugins {
-  id 'cn.taketoday.application' version '{gradle-project-version}'
-}
-```
-
---------------------------------
-
 ### Lifecycle interface definition
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/beans/factory-nature.adoc
@@ -1469,18 +1444,29 @@ public interface Lifecycle {
 
 --------------------------------
 
-### 验证接口 (curl + 响应)
+### 通过 plugins 块应用插件 (Groovy)
 
-Source: https://github.com/taketoday/today-infrastructure/blob/master/README.md
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/gradle-plugin/pages/getting-started.adoc
 
-服务启动后，在另一个终端执行 curl 验证。预期响应为 'Hello, TODAY!'。
+在 Gradle 插件门户发布后，使用 plugins 块应用 cn.taketoday.application 插件。版本号由 {gradle-project-version} 占位符表示。
 
-```bash
-curl http://localhost:8080/hello
+```groovy
+plugins {
+  id 'cn.taketoday.application' version '{gradle-project-version}'
+}
 ```
 
-```text
-Hello, TODAY!
+--------------------------------
+
+### Flattened indexed properties from YAML list
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/external-config.adoc
+
+Shows the equivalent flattened properties for the YAML list example, using indexed keys.
+
+```properties
+my.servers[0]=dev.example.com
+my.servers[1]=another.example.com
 ```
 
 --------------------------------
@@ -1501,6 +1487,18 @@ public class CliApplication {
 
 --------------------------------
 
+### 使用逗号分隔的位置组
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/external-config.adoc
+
+app.config.location=classpath:/cfg/,classpath:/ext/ 将两个目录划为不同组，先处理 /cfg 组全部 Profile，再处理 /ext 组。
+
+```properties
+app.config.location=classpath:/cfg/,classpath:/ext/
+```
+
+--------------------------------
+
 ### 仅使用初始化器配置上下文（省略配置类）
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/testing/testcontext-framework/ctx-management/initializers.adoc
@@ -1516,6 +1514,18 @@ class MyTest {
   // 类主体...
 }
 
+```
+
+--------------------------------
+
+### 使用分号分隔的位置组
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/external-config.adoc
+
+app.config.location=classpath:/cfg/;classpath:/ext/ 将两个目录放在同一组，按 Profile 顺序遍历组内位置。
+
+```properties
+app.config.location=classpath:/cfg/;classpath:/ext/
 ```
 
 --------------------------------
@@ -1600,6 +1610,74 @@ tasks.named("infraJar") {
 
 --------------------------------
 
+### Cron expression examples for scheduling
+
+Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/integration/scheduling.adoc
+
+A table of cron expressions with their meanings, used for scheduling tasks in Infra. Each expression is a six-field cron pattern.
+
+```text
+0 0 * * * *
+```
+
+```text
+*/10 * * * * *
+```
+
+```text
+0 0 8-10 * * *
+```
+
+```text
+0 0 6,19 * * *
+```
+
+```text
+0 0/30 8-10 * * *
+```
+
+```text
+0 0 9-17 * * MON-FRI
+```
+
+```text
+0 0 0 25 DEC ?
+```
+
+```text
+0 0 0 L * *
+```
+
+```text
+0 0 0 L-3 * *
+```
+
+```text
+0 0 0 * * 5L
+```
+
+```text
+0 0 0 * * THUL
+```
+
+```text
+0 0 0 1W * *
+```
+
+```text
+0 0 0 LW * *
+```
+
+```text
+0 0 0 ? * 5#2
+```
+
+```text
+0 0 0 ? * MON#1
+```
+
+--------------------------------
+
 ### SimpleMethodTracingCustomizer implementation
 
 Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/languages/dynamic.adoc
@@ -1622,39 +1700,4 @@ public final class SimpleMethodTracingCustomizer implements GroovyObjectCustomiz
   }
 
 }
-```
-
---------------------------------
-
-### 在 application.yaml 中设置激活的 Profile
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/application/pages/features/profiles.adoc
-
-等价的 YAML 配置，使用嵌套结构指定激活的 Profile。
-
-```yaml
-infra:
-  profiles:
-    active: "dev,hsqldb"
-```
-
---------------------------------
-
-### 注册 MethodHandle 为函数
-
-Source: https://github.com/taketoday/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/core/expressions/language-ref/functions.adoc
-
-使用 `MethodHandles.lookup().findVirtual` 获取 `String#formatted` 的 `MethodHandle` 并注册为变量，在表达式中调用，评估结果为 "Simple message: <Hello World>"。
-
-```java
-ExpressionParser parser = new SpelExpressionParser();
-EvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
-
-MethodHandle mh = MethodHandles.lookup().findVirtual(String.class, "formatted",
-    MethodType.methodType(String.class, Object[].class));
-context.setVariable("message", mh);
-
-// 评估结果为 "Simple message: <Hello World>"
-String message = parser.parseExpression("#message('Simple message: <%s>', 'Hello World', 'ignored')")
-    .getValue(context, String.class);
 ```

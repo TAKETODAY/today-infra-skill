@@ -197,7 +197,23 @@ com.mycorp.libx.autoconfigure.LibXAutoConfiguration=com.mycorp.libx.autoconfigur
 
 ### 概述
 
-TODAY INFRA 允许把配置放在应用代码之外，使同一份代码在不同环境中运行。 配置来源包括 Java Properties、YAML、环境变量、Java 系统属性和命令行参数。 可以通过 infra.beans.factory.annotation.Value 注入单个值，通过 infra.core.env.Environment 查询属性，或使用 infra.context.properties.ConfigurationProperties 绑定结构化对象。
+Adapted from the Spring Boot external configuration documentation and examples. Copyright 2012-present the original author or authors. Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at Unless required by applicable law or agreed to in writing, software distributed under the Licens
+
+#### 属性源与覆盖顺序
+
+标准 Application 启动流程中，常见属性源按以下顺序排列，后面的值覆盖前面的值： 测试中的内联属性、@DynamicPropertySource 和 @TestPropertySource 还可以增加高优先级属性源。 其最终顺序取决于使用的测试引导器和上下文定制器；不能把 Boot 的测试切片和 Devtools 属性源顺序直接套用到 infra。 同样，infra 的标准 Web 环境不会自动增加 Servlet 初始化参数或 java:comp/env JNDI 属性源。 需要其他来源时，应显式配置属性源或环境后处理器。 配置数据内部按以下层次覆盖：打包在 JAR 内的普通配置、JAR 内的 Profile 专用配置、JAR 外的普通配置、JAR 外的 Profile 专用配置。 显式配置位置与位置组可以改变搜索安排，详见下文。 例如，一个组件可以通过 @Value 使用 n
+
+```java
+import infra.beans.factory.annotation.Value;
+import infra.stereotype.Component;
+
+@Component
+public class MyBean {
+
+  @Value("${name}")
+  private String name;
+}
+```
 
 #### 命令行参数
 
@@ -211,12 +227,6 @@ java -jar myapp.jar --my.service.name=production
 
 可以用 infra.application.json 系统属性或 INFRAAPPLICATIONJSON 环境变量提供一段 JSON：
 
-```shell
-INFRA_APPLICATION_JSON='{"my":{"name":"test"}}' java -jar myapp.jar
-java -Dinfra.application.json='{"my":{"name":"test"}}' -jar myapp.jar
-java -jar myapp.jar --infra.application.json='{"my":{"name":"test"}}'
-```
-
 #### 更改名称和位置
 
 app.config.name 更改配置文件基本名称，不包含扩展名：
@@ -225,9 +235,21 @@ app.config.name 更改配置文件基本名称，不包含扩展名：
 
 使用 app.config.import 从其他位置导入配置数据：
 
+##### 链式相对导入
+
+假设应用位于 /demo，其 /demo/application.properties 包含：
+
+##### 导入声明的顺序与扩展点
+
+下列两个文档的效果相同：
+
 ##### 无扩展名文件
 
 可以使用扩展名提示加载没有扩展名的文件：
+
+##### 从环境变量导入配置
+
+env: 将一个环境变量的完整内容作为配置文档加载，而不是将环境变量名作为单个属性名。 默认按 Java Properties 格式解析：
 
 ##### 配置树
 
@@ -235,7 +257,65 @@ app.config.name 更改配置文件基本名称，不包含扩展名：
 
 #### 占位符与多文档配置
 
-配置值使用时可通过环境解析 $\{name} 占位符，也可以指定默认值 ${name:default}。 推荐使用小写连字符形式的规范属性名，例如 ${demo.item-price}。
+配置值使用时可通过环境解析 $\{name} 占位符，也可以指定默认值 ${name:default}。 推荐使用小写连字符形式的规范属性名，例如 ${demo.item-price}。 在标准应用环境中，这种写法可以同时匹配配置文件中的 demo.item-price、demo.itemPrice 和环境变量 DEMO_ITEMPRICE。 如果改用 ${demo.itemPrice}，则不会反向匹配配置文件中的 demo.item-price。 占位符可以出现在值的任意位置，也可以引用系统属性或环境变量。 还可以定义 server.port=${port:8080}，以 --port=9000 作为现有属性的短命令行参数。
+
+##### 映射为扁平属性
+
+YAML 适合描述层次化配置。例如：
+
+#### 随机值配置
+
+infra.app.env.RandomValuePropertySource 可以为配置占位符生成随机整数、长整数、UUID 或字符串：
+
+##### 注册与扫描
+
+对于需要按条件启用的配置属性，或者自动配置中使用的类型，可以在配置类上显式注册：
+
+##### JavaBean 绑定
+
+JavaBean 绑定通常使用无参构造器、getter 和 setter。 预先初始化为可变实现的集合、Map，以及预先初始化的嵌套对象，可以省略 setter。 目标还支持公开字段绑定；静态成员不应作为配置属性。 嵌套属性名由成员名决定，而不是由嵌套类型名决定。 下面的类型将 my.service 下的属性绑定为服务配置：
+
+##### 嵌套构造器与默认值
+
+下面的示例同时绑定顶层属性与嵌套安全设置。嵌套对象也通过构造器创建：
+
+##### 使用和第三方对象
+
+配置属性 Bean 可以像其他 Bean 一样注入。 通常应只承载环境配置，不在构造器中注入其他业务 Bean。 也可以在创建第三方对象的 @Bean 方法上使用 @ConfigurationProperties，为返回的对象绑定指定前缀下的属性。 例如，将前面的 MyProperties 注册后，可以使用以下 YAML 配置它：
+
+##### 第三方对象绑定示例
+
+无法修改第三方类型时，可以把注解放到创建该对象的公开 @Bean 方法上。 下面用一个具有 name JavaBean 属性的组件演示这种方式；实际使用时将其替换为第三方库中的类型：
+
+##### 宽松绑定
+
+绑定时支持连字符、驼峰和下划线等常见命名形式，例如 first-name、firstName、first_name。 注解的前缀必须使用小写连字符形式。推荐配置文件也使用这一形式。 例如下面的配置类型：
+
+##### Map 的特殊键
+
+Map 的特殊键可以用方括号保留，例如 YAML 中的 "[/key1]"。 没有方括号时，键中的部分非字母数字字符会被删除。 对于 Map<String, String>，点可以保留为键的一部分；对于 Map<String, Object>，不加括号的点通常表示嵌套结构。 宽松绑定默认缓存不可变属性源；需要控制缓存时使用 infra.context.properties.source.ConfigurationPropertyCaching。 例如，以下 YAML 绑定到 Map<String, String>：
+
+##### 环境变量中的 Map
+
+##### 集合合并规则
+
+多个来源中的列表按最高优先级来源整体替换，不追加元素，也不合并同一索引对象的字段。 Map 则可以从多个来源合并不同键，同一属性由更高优先级的值覆盖。 这些规则适用于全部属性源，不限于 Profile 配置文件。 下面的类型同时展示可变列表与 Map 的可绑定入口；两个集合也可以分别放到独立的配置类型中：
+
+##### Duration 示例
+
+下面的不可变配置属性类型通过构造器绑定超时值。 使用前需要通过 @EnableConfigurationProperties 或配置属性扫描注册类型，并保留编译参数 -parameters：
+
+##### DataSize 示例
+
+容量属性同样支持构造器绑定与默认单位：
+
+##### Base64 数据
+
+配置属性为 infra.core.io.Resource 时，可以使用 base64: 前缀提供编码后的二进制内容：
+
+##### 校验
+
+存在 Jakarta Bean Validation 实现时，可以在配置属性类型上声明 infra.validation.annotation.Validated，并为成员添加约束。 嵌套对象的级联校验使用 jakarta.validation.Valid。 也可以提供名为 configurationPropertiesValidator 的 infra.validation.Validator Bean；它的工厂方法应是静态的，避免过早创建配置类。 下面的配置类型要求提供远端地址，并级联校验嵌套的用户名：
 
 ## 国际化
 

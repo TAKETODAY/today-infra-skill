@@ -29,15 +29,15 @@
 
 ### 概述
 
-Infra Web MVC 包括 WebMvc.fn，这是一个轻量级的函数式编程模型，在该模型中，函数用于路由和处理请求，设计为不可变性。 它是基于注解编程模型的另一种选择，但在其他方面运行在相同的 DispatcherHandler 上。
+Infra Web MVC 包括 WebMvc.fn，这是一个轻量级的函数式编程模型，在该模型中，函数用于路由和处理请求。 它是基于注解编程模型的另一种选择，但在其他方面运行在相同的 DispatcherHandler 上。
 
 #### 概述
 
-在 WebMvc.fn 中，一个 HTTP 请求通过 HandlerFunction 处理：一个接受 ServerRequest 并返回 ServerResponse 的函数。 请求和响应对象都具有不可变的合同，提供了与 JDK 8 兼容的访问 HTTP 请求和响应的方式。 HandlerFunction 相当于注解-based 编程模型中 @RequestMapping 方法的主体。 传入的请求通过 RouterFunction 路由到处理函数：一个接受 ServerRequest 并返回可选的 HandlerFunction（即 Optional<HandlerFunction>）的函数。 当路由函数匹配时，会返回一个处理函数；否则返回一个空的 Optional。 RouterFunction 相当于 @RequestMapping 注解，但主要区别在于路由函数不仅提供数据，还提供行为
+在 WebMvc.fn 中，一个 HTTP 请求通过 HandlerFunction 处理：一个接受 ServerRequest 并返回 ServerResponse 的函数。 请求和响应通过专用接口提供对 HTTP 请求和响应的访问；框架要求 JDK 17 或更高版本。 HandlerFunction 相当于基于注解的编程模型中 @RequestMapping 方法的主体。 传入的请求通过 RouterFunction 路由到处理函数：一个接受 ServerRequest 并返回可选的 HandlerFunction（即 Optional<HandlerFunction>）的函数。 当路由函数匹配时，会返回一个处理函数；否则返回一个空的 Optional。 RouterFunction 相当于 @RequestMapping 注解，但主要区别在于路由函数不仅提供数据，还提供行为。 Rou
 
 ```java
 import static infra.http.MediaType.APPLICATION_JSON;
-import static infra.web.handler.function.ReqestPredicates.*;
+import static infra.web.handler.function.RequestPredicates.accept;
 import static infra.web.handler.function.RouterFunctions.route;
 
 PersonRepository repository = ...
@@ -70,7 +70,7 @@ public class PersonHandler {
 
 ##### ServerRequest
 
-ServerRequest 提供了访问 HTTP 方法、URI、头和查询参数的方式，而对主体的访问则通过 body 方法提供。 以下示例将请求主体提取为 String：
+ServerRequest 提供了访问 HTTP 方法、URI、头和查询参数的方式，而对主体的访问则通过 body 方法提供。 body(Class) 和 body(ParameterizedTypeReference) 均声明了 IOException，调用方需要捕获或声明该异常。 HandlerFunction.handle 允许抛出 Exception，因此处理函数可以直接声明 throws IOException。 以下示例将请求主体提取为 String：
 
 ```java
 String string = request.body(String.class);
@@ -78,7 +78,7 @@ String string = request.body(String.class);
 
 ##### ServerResponse
 
-ServerResponse 提供了对 HTTP 响应的访问，并且由于它是不可变的，您可以使用 build 方法来创建它。 您可以使用构建器设置响应状态、添加响应头或提供主体。以下示例创建了一个带有 JSON 内容的 200 (OK) 响应：
+ServerResponse 提供了对 HTTP 响应的访问。通过构建器的 build() 创建无主体响应，通过 body(...) 创建带主体响应。 您可以使用构建器设置响应状态、添加响应头或提供主体。以下示例创建了一个带有 JSON 内容的 200 (OK) 响应：
 
 ##### Handler Classes
 
@@ -100,9 +100,9 @@ ServerResponse 提供了对 HTTP 响应的访问，并且由于它是不可变�
 
 一组路由函数经常具有共享的断言，例如共享路径。 在上面的示例中，共享的断言将是一个路径断言，匹配 /person，被三个路由使用。 在使用注解时，您可以通过使用类型级别的 @RequestMapping 注解将其映射到 /person 来消除此重复。 在 WebMvc.fn 中，路径断言可以通过路由函数构建器上的 path 方法共享。 例如，通过使用嵌套路由，上面示例的最后几行可以通过以下方式改进：
 
-##### 重定向到资源
+##### 将请求路由到指定资源
 
-可以将匹配指定谓词的请求重定向到资源。例如，在单页应用程序中处理重定向时可能很有用。
+可以将匹配指定谓词的请求路由到资源，例如为单页应用程序提供 index.html 回退。 这会直接返回资源内容，而不是发送带有 Location 头的 HTTP 3xx 重定向响应。
 
 ##### 从根路径提供资源服务
 
@@ -114,7 +114,7 @@ ServerResponse 提供了对 HTTP 响应的访问，并且由于它是不可变�
 
 #### Filtering Handler Functions
 
-你可以通过在路由函数构建器上使用 before、after 或 filter 方法来过滤处理函数。 使用注解时，你可以通过使用 @ControllerAdvice、ServletFilter 或两者来实现类似的功能。 该过滤器将应用于由构建器构建的所有路由。 这意味着嵌套路由中定义的过滤器不适用于“顶级”路由。 例如，请考虑以下示例：
+你可以通过在路由函数构建器上使用 before、after 或 filter 方法来过滤处理函数。 在基于注解的编程模型中，可以通过 HandlerInterceptor 或底层服务器的过滤器实现类似的请求前后处理。 该过滤器将应用于由构建器构建的所有路由。 这意味着嵌套路由中定义的过滤器不适用于“顶级”路由。 例如，请考虑以下示例：
 
 ## CORS
 
@@ -134,12 +134,12 @@ Web MVC 允许您处理跨源资源共享 (CORS，跨源资源共享)。本节�
 public class AccountController {
 
   @CrossOrigin
-  @GetMapping("/{id}")
+  @GET("/{id}")
   public Account retrieve(@PathVariable Long id) {
     // ...
   }
 
-  @DeleteMapping("/{id}")
+  @DELETE("/{id}")
   public void remove(@PathVariable Long id) {
     // ...
   }
@@ -249,6 +249,20 @@ public class SampleContentAtomView extends AbstractAtomFeedView {
 
 Apache FreeMarker 是一个模板引擎，用于生成从 HTML 到电子邮件等各种文本输出。 Infra Framework 内置了使用 FreeMarker 模板的 Infra MVC 集成。
 
+#### 消息解析与输出转义
+
+模板视图为每次渲染提供 messages 对象，基于现有的 MessageSourceAccessor 解析消息并格式化参数。它使用当前 HttpContext.getMessageSource()，因此保留自定义消息源及上下文装饰器的委托语义。 显式配置的视图 Locale 优先，否则通过当前请求的 LocaleResolver 解析语言； 模板选择、消息解析和 FreeMarker 格式化使用相同的渲染语言。
+
+```ftl
+<#ftl output_format="HTML" auto_esc=true>
+<#import "/infra.ftl" as infra>
+
+${messages.getMessage("welcome")}
+${messages.getMessage("welcome.user", [user.name])}
+${messages.getMessage("optional", "默认文本")}
+<@infra.messageArgs "welcome.user", [user.name]/>
+```
+
 #### 视图配置
 
 以下示例展示了如何将 FreeMarker 配置为视图技术：
@@ -277,19 +291,6 @@ public class WebConfig implements WebMvcConfigurer {
 #### FreeMarker 配置
 
 您可以通过在 FreeMarkerConfigurer bean 上设置相应的 bean 属性，将 FreeMarker 'Settings' 和 'SharedVariables' 直接传递给 FreeMarker Configuration 对象（由 Infra 管理）。 freemarkerSettings 属性需要一个 java.util.Properties 对象，而 freemarkerVariables 属性需要一个 java.util.Map。 以下示例展示了如何使用 FreeMarkerConfigurer：
-
-```xml
-<bean id="freemarkerConfig" class="infra.web.view.freemarker.FreeMarkerConfigurer">
-  <property name="templateLoaderPath" value="classpath:freemarker/"/>
-  <property name="freemarkerVariables">
-    <map>
-      <entry key="xml_escape" value-ref="fmXmlEscape"/>
-    </map>
-  </property>
-</bean>
-
-<bean id="fmXmlEscape" class="freemarker.template.utility.XmlEscape"/>
-```
 
 ##### 简单绑定
 

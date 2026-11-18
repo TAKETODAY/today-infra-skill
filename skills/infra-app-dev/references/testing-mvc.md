@@ -74,7 +74,7 @@ mockMvc.perform(get("/accounts/1")).andExpect(status().isOk());
 
 ### 概述
 
-当设置 MockMvc 实例时，你可以注册一个或多个 Servlet Filter 实例，如下例所示：
+当设置 MockMvc 实例时，你可以注册一个或多个 Filter 实例，如下例所示：
 
 ```java
 	mockMvc = standaloneSetup(new PersonController()).addFilters(new CharacterEncodingFilter()).build();

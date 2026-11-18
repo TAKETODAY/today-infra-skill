@@ -26,7 +26,6 @@
 
 | Starter | 说明 |
 |---|---|
-| `infra-starter-reactor-netty` | — |
 | `infra-starter-reactor-server` | Starter for using Reactor Netty as the embedded reactive HTTP server. |
 | `infra-starter-web` | Starter for building web, including RESTful, applications using Web API. |
 | `infra-starter-webclient` | Starter using reactive HTTP clients (WebClient and HTTP Service Clients) |

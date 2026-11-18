@@ -4,12 +4,12 @@
 
 控制器、请求映射、方法参数与返回值、异常处理、MVC 配置、Netty 配置。
 
-覆盖文档：58 页（含示例 38 页）。原文位于仓库 `infra-docs/`，下方每个页面标注了路径。
+覆盖文档：61 页（含示例 42 页）。原文位于仓库 `infra-docs/`，下方每个页面标注了路径。
 
 ## 页面索引
 
 - **异步请求** —— `web/webmvc/mvc-ann-async`
-- 错误响应 —— `web/webmvc/mvc-ann-rest-exceptions`
+- **错误响应** —— `web/webmvc/mvc-ann-rest-exceptions`
 - **HTTP 缓存** —— `web/webmvc/mvc-caching`
 - MVC 配置 —— `web/webmvc/mvc-config`
 - **Java 配置** —— `web/webmvc/mvc-config/advanced-java`
@@ -17,6 +17,7 @@
 - **类型转换** —— `web/webmvc/mvc-config/conversion`
 - **MVC 配置 API** —— `web/webmvc/mvc-config/customize`
 - **启用 MVC 配置** —— `web/webmvc/mvc-config/enable`
+- **参数解析与返回值扩展** —— `web/webmvc/mvc-config/handler-methods`
 - **拦截器** —— `web/webmvc/mvc-config/interceptors`
 - **消息转换器** —— `web/webmvc/mvc-config/message-converters`
 - **路径匹配** —— `web/webmvc/mvc-config/path-matching`
@@ -54,6 +55,7 @@
 - DispatcherHandler —— `web/webmvc/mvc-core`
 - Web MVC 配置 —— `web/webmvc/mvc-core/config`
 - 异常 —— `web/webmvc/mvc-core/exceptionhandlers`
+- **过滤器** —— `web/webmvc/mvc-core/filters`
 - 拦截 —— `web/webmvc/mvc-core/handlermapping-interceptor`
 - 路径匹配 —— `web/webmvc/mvc-core/handlermapping-path`
 - **Locale** —— `web/webmvc/mvc-core/localeresolver`
@@ -65,6 +67,7 @@
 - 视图解析 —— `web/webmvc/mvc-core/viewresolver`
 - 数据绑定 —— `web/webmvc/mvc-data-binding`
 - HTTP/2 —— `web/webmvc/mvc-http2`
+- **响应 Trailer** —— `web/webmvc/mvc-trailers`
 - **URI 链接** —— `web/webmvc/mvc-uri-building`
 
 ## 异步请求
@@ -80,7 +83,7 @@ Web MVC 异步请求集成，如下： 和 Callable 返回值提供了对单个�
 只要 HTTP 处理器返回了 DeferredResult 对象就会进入异步处理状态。例如：
 
 ```java
-@GetMapping("/quotes")
+@GET("/quotes")
 @ResponseBody
 public DeferredResult<String> quotes() {
   DeferredResult<String> deferredResult = new DeferredResult<>();
@@ -110,8 +113,8 @@ deferredResult.setResult(result);
 HTTP 处理器也可以使用 java.util.concurrent.Callable 包装任何支持的返回值，如下例所示：
 
 ```java
-@PostMapping
-public Callable<String> processUpload(MultipartFile file) {
+@POST
+public Callable<String> processUpload(@RequestParam("file") Part file) {
   return () -> "someView";
 }
 
@@ -121,7 +124,7 @@ public class MyHttpRequestHandler implements HttpRequestHandler {
   @Nullable
   @Override
   public Callable<String> handleRequest(HttpContext request) throws Throwable {
-    MultipartFile file = request.getMultipartRequest().getFile("file");
+    Part file = request.asMultipartRequest().getPart("file");
     // ...
     return () -> "someView";
   }
@@ -148,6 +151,42 @@ SseEmitter 是 ResponseBodyEmitter 的子类，提供了 Server-Sent Events 支�
 ### 概述
 
 REST服务的一个常见需求是在错误响应的正文中包含详细信息。TODAY框架支持"HTTP API的问题详情"规范，即RFC 7807。 以下是这方面的主要抽象： - ProblemDetail -- RFC 7807问题详情的表示；一个简单的容器，用于存放规范中定义的标准字段和非标准字段。 - ErrorResponse -- 公开HTTP错误响应详细信息的契约，包括HTTP状态、响应头和RFC 7807格式的正文； 这允许异常封装并公开它们如何映射到HTTP响应的详细信息。所有 Web MVC 异常都实现了这一点。 - ErrorResponseException -- 基本的 ErrorResponse 实现，其他人可以将其用作方便的基类。 - ResponseEntityExceptionHandler -- 一个方便的基类，用于处理所有 Web MVC 异常和任何 ErrorRes
+
+#### 未处理异常的兜底响应
+
+除了声明 ResponseEntityExceptionHandler，还可以通过 configureProblemDetails， 将未被控制器或 @ControllerAdvice 中的 @ExceptionHandler 处理的异常转换为 RFC 9457 问题详情：
+
+```java
+import infra.context.annotation.Configuration;
+import infra.web.config.annotation.ProblemDetailsConfigurer;
+import infra.web.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class ProblemDetailsConfiguration implements WebMvcConfigurer {
+
+  @Override
+  public void configureProblemDetails(ProblemDetailsConfigurer configurer) {
+    configurer.renderUnhandledExceptions(true);
+  }
+}
+```
+
+#### HTML 错误视图
+
+对于同一端点，可以向 API 客户端写出问题详情，向偏好 HTML 的浏览器返回错误页面。 通过 ProblemDetailsConfigurer.viewResolver(...) 注册 infra.web.ErrorResponseViewResolver：
+
+```java
+@Override
+public void configureProblemDetails(ProblemDetailsConfigurer configurer) {
+  configurer.renderUnhandledExceptions(true)
+    .viewResolver((request, problem, errorResponse) ->
+      new ModelAndView("errors/problem").addObject("problem", problem));
+}
+```
+
+#### 错误响应拦截器
+
+通过 WebMvcConfigurer.addErrorResponseInterceptors 为问题详情添加统一的非标准字段：
 
 ## HTTP 缓存
 
@@ -179,7 +218,7 @@ CacheControl ccCustom = CacheControl.maxAge(10, TimeUnit.DAYS).noTransform().cac
 HTTP 处理器可以添加对 HTTP 缓存的显式支持。我们建议这样做，因为资源的 lastModified 或 ETag 值需要在与条件请求头进行比较之前计算出来。控制器可以向 ResponseEntity 添加 ETag 头和 Cache-Control 设置，如下例所示：
 
 ```java
-@GetMapping("/book/{id}")
+@GET("/book/{id}")
 public ResponseEntity<Book> showBook(@PathVariable Long id) {
 
   Book book = findBook(id);
@@ -309,6 +348,99 @@ public class WebConfiguration {
 }
 ```
 
+## 参数解析与返回值扩展
+
+> 原文：[`web/webmvc/mvc-config/handler-methods`](https://github.com/TAKETODAY/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-config/handler-methods.adoc)
+
+### 概述
+
+Web MVC 使用 ParameterResolvingStrategy 将请求转换为控制器方法参数， 使用 ReturnValueHandler 处理方法结果。两者都可以通过 WebMvcConfigurer 扩展，无需替换整个请求映射适配器。
+
+#### 自定义参数解析
+
+以下示例将 X-Tenant-Id 请求头封装为专用参数类型；业务场景仍需自行验证租户身份和访问权限，不能将请求头视为可信身份。
+
+```java
+import infra.context.annotation.Configuration;
+import infra.http.HttpStatus;
+import infra.web.HttpContext;
+import infra.web.bind.resolver.ParameterResolvingStrategies;
+import infra.web.bind.resolver.ParameterResolvingStrategy;
+import infra.web.config.annotation.WebMvcConfigurer;
+import infra.web.handler.method.HandlerParameter;
+import infra.web.server.ResponseStatusException;
+
+@Configuration
+public class TenantWebConfiguration implements WebMvcConfigurer {
+
+  public record TenantId(String value) {}
+
+  @Override
+  public void configureParameterResolving(ParameterResolvingStrategies strategies) {
+    strategies.add(new ParameterResolvingStrategy() {
+      @Override
+      public boolean supportsParameter(HandlerParameter parameter) {
+        return parameter.getParameterType() == TenantId.class;
+      }
+
+      @Override
+      public Object resolveArgument(HttpContext context, HandlerParameter parameter) {
+        String value = context.requestHeaders().getFirst("X-Tenant-Id");
+        if (value == null || value.isBlank()) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing tenant id");
+        }
+        return new TenantId(value);
+      }
+    });
+  }
+}
+```
+
+#### 自定义返回值处理
+
+modifyReturnValueHandlerManager(ReturnValueHandlerManager) 在默认返回值处理器注册后执行。 通过 manager.getHandlers() 可检查和调整有序列表，manager.addHandlers(...) 则追加到末尾。 当自定义返回类型可能被默认兜底处理器接收时，应将专用处理器放到它之前，而不是简单追加。 实现 infra.web.ReturnValueHandler 时，需提供 supportsHandler(Object) 和 handleReturnValue(HttpContext, Object, Object)；也可以重写 supportsReturnValue(Object) 按运行时结果匹配。 普通处理器的处理器匹配与返回值匹配是“或”关系，因此不要用无条件返回 true 的匹配方法， 否则会截获视图、异步
+
+```java
+import java.nio.charset.StandardCharsets;
+
+import org.jspecify.annotations.Nullable;
+
+import infra.context.annotation.Configuration;
+import infra.web.HttpContext;
+import infra.web.ReturnValueHandler;
+import infra.web.config.annotation.WebMvcConfigurer;
+import infra.web.handler.ReturnValueHandlerManager;
+
+@Configuration
+public class TextResultConfiguration implements WebMvcConfigurer {
+
+  public record TextResult(String text) {}
+
+  @Override
+  public void modifyReturnValueHandlerManager(ReturnValueHandlerManager manager) {
+    manager.getHandlers().add(0, new ReturnValueHandler() {
+      @Override
+      public boolean supportsHandler(Object handler) {
+        return false;
+      }
+
+      @Override
+      public boolean supportsReturnValue(@Nullable Object returnValue) {
+        return returnValue instanceof TextResult;
+      }
+
+      @Override
+      public void handleReturnValue(HttpContext context, @Nullable Object handler,
+          @Nullable Object returnValue) throws Exception {
+        TextResult result = (TextResult) returnValue;
+        context.responseHeaders().set("Content-Type", "text/plain;charset=UTF-8");
+        context.getOutputStream().write(result.text().getBytes(StandardCharsets.UTF_8));
+      }
+    });
+  }
+}
+```
+
 ## 拦截器
 
 > 原文：[`web/webmvc/mvc-config/interceptors`](https://github.com/TAKETODAY/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-config/interceptors.adoc)
@@ -323,9 +455,8 @@ public class WebConfiguration implements WebMvcConfigurer {
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(new LocaleChangeInterceptor());
-    // registry.addInterceptor(new ThemeChangeInterceptor())
-    //   .addPathPatterns("/**").excludePathPatterns("/admin/**");
+    registry.addInterceptor(new LocaleChangeInterceptor())
+      .addPathPatterns("/**").excludePathPatterns("/admin/**");
   }
 }
 ```
@@ -336,21 +467,38 @@ public class WebConfiguration implements WebMvcConfigurer {
 
 ### 概述
 
-您可以通过重写 configureMessageConverters()， 在Java配置中设置要使用的 HttpMessageConverter 实例，替换默认使用的实例。您也可以通过重写 extendMessageConverters()， 在最后定制配置的消息转换器列表。 TIP: 在 Infra App 应用程序中，WebMvcAutoConfiguration 除了默认转换器外，还会添加它检测到的任何 HttpMessageConverter Bean。或者，也可以使用 extendMessageConverters 在最后修改消息转换器。 FormHttpMessageConverter 支持读取和写入 application/x-www-form-urlencoded 表单， 既可以使用 MultiValueMap<String, String> 保留同一名称的多个值，也可以
+您可以通过重写 configureMessageConverters(List)， 在Java配置中设置要使用的 HttpMessageConverter 实例，替换默认使用的实例。您也可以通过重写 extendMessageConverters(List)， 在最后定制配置的消息转换器列表。 TIP: 在 Infra App 应用程序中，WebMvcAutoConfiguration 除了默认转换器外，还会添加它检测到的任何 HttpMessageConverter Bean。或者，也可以使用 extendMessageConverters 在最后修改消息转换器。 FormHttpMessageConverter 支持读取和写入 application/x-www-form-urlencoded 表单， 既可以使用 MultiValueMap<String, String> 保留同一名称
 
 ```java
+import infra.http.converter.json.JacksonJsonHttpMessageConverter;
+import infra.http.converter.xml.JacksonXmlHttpMessageConverter;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.xml.XmlMapper;
+
 @Configuration
 public class WebConfiguration implements WebMvcConfigurer {
 
   @Override
   public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-    Jackson2ObjectMapperBuilder builder = new Jackson2ObjectMapperBuilder()
-            .indentOutput(true)
-            .dateFormat(new SimpleDateFormat("yyyy-MM-dd"))
-            .modulesToInstall(new ParameterNamesModule());
-    converters.add(new JacksonJsonHttpMessageConverter(builder.build()));
-    converters.add(new JacksonXmlHttpMessageConverter(builder.createXmlMapper(true).build()));
+    converters.add(new JacksonJsonHttpMessageConverter(
+      JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT)));
+    converters.add(new JacksonXmlHttpMessageConverter(
+      XmlMapper.builder(JacksonXmlHttpMessageConverter.defensiveXmlFactory())
+        .enable(SerializationFeature.INDENT_OUTPUT)));
   }
+}
+```
+
+#### 保留默认转换器的构建器配置
+
+如果只需替换某一种格式的转换器，同时保留字节数组、字符串、表单等默认支持， 可以重写 configureMessageConverters(HttpMessageConverters.ServerBuilder)：
+
+```java
+@Override
+public void configureMessageConverters(HttpMessageConverters.ServerBuilder builder) {
+  builder.withJsonConverter(new JacksonJsonHttpMessageConverter(
+    JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT)));
 }
 ```
 
@@ -564,7 +712,7 @@ public class FormController {
 您可以使用 @CookieValue 注解将 HTTP cookie 的值绑定到控制器中的方法参数。 考虑一个带有以下 cookie 的请求： JSESSIONID=415A4AC178C59DACE0B2C9CA727CDD84 以下示例展示了如何获取 cookie 值：
 
 ```java
-@GetMapping("/demo")
+@GET("/demo")
 public void handle(@CookieValue("JSESSIONID") String cookie) { <1>
   //...
 }
@@ -576,7 +724,7 @@ public void handle(@CookieValue("JSESSIONID") String cookie) { <1>
 
 ### 概述
 
-Flash 属性提供了一种让一个请求存储旨在供另一个请求使用的属性的方法。 这在重定向时最常需要——例如，Post-Redirect-Get 模式。 Flash 属性在重定向之前临时保存（通常在会话中），以便在重定向后的请求中可用，并立即被移除。 Web MVC 有两个主要的抽象来支持 Flash 属性。FlashMap 用于保存 Flash 属性， 而 FlashMapManager 用于存储、检索和管理 FlashMap 实例。 Flash 属性支持始终是“开启”的，不需要显式启用。但是，如果不使用，它绝不会导致创建 HTTP 会话。 在每个请求上，都有一个具有从上一个请求传递的属性（如果有）的“输入”FlashMap， 以及一个具有要为后续请求保存的属性的“输出”FlashMap。 这两个 FlashMap 实例都可以通过 HttpContextUtils 中的静态方法在 Web M
+Flash 属性提供了一种让一个请求存储旨在供另一个请求使用的属性的方法。 这在重定向时最常需要——例如，Post-Redirect-Get 模式。 Flash 属性在重定向之前临时保存（通常在会话中），以便在重定向后的请求中可用，并立即被移除。 Web MVC 有两个主要的抽象来支持 Flash 属性。FlashMap 用于保存 Flash 属性， 而 FlashMapManager 用于存储、检索和管理 FlashMap 实例。 Flash 属性支持始终是“开启”的，不需要显式启用。但是，如果不使用，它绝不会导致创建 HTTP 会话。 在每个请求上，都有一个具有从上一个请求传递的属性（如果有）的“输入”FlashMap， 以及一个具有要为后续请求保存的属性的“输出”FlashMap。 这两个 FlashMap 实例都可以通过 WebUtils 中的静态方法在 Web MVC 的任何地方
 
 ## HttpEntity
 
@@ -587,7 +735,7 @@ Flash 属性提供了一种让一个请求存储旨在供另一个请求使用�
 HttpEntity 与使用 @RequestBody 或多或少相同，但它是基于一个公开请求头和正文的容器对象。以下清单显示了一个示例：
 
 ```java
-@PostMapping("/accounts")
+@POST("/accounts")
 public void handle(HttpEntity<Account> entity) {
   // ...
 }
@@ -609,7 +757,7 @@ Web MVC 为 Jackson 的序列化视图 提供了内置支持， 这允许仅渲�
 @RestController
 public class UserController {
 
-  @GetMapping("/user")
+  @GET("/user")
   @JsonView(User.WithoutPasswordView.class)
   public User getUser() {
     return new User("eric", "7!jd#h23");
@@ -684,18 +832,22 @@ public String processSubmit(@ModelAttribute Pet pet) { // <1>
 
 ### 概述
 
-在 启用 MultipartResolver 之后， 带有 multipart/form-data 的 POST 请求的内容将被解析并作为常规请求参数访问。 以下示例访问一个常规表单字段和一个上传的文件：
+在 配置 MultipartParser 之后， 带有 multipart/form-data 的 POST 请求的内容将被解析并作为常规请求参数访问。 以下示例访问一个常规表单字段和一个上传的文件：
 
 ```java
+import java.io.IOException;
+
+import infra.web.multipart.Part;
+
 @Controller
 public class FileUploadController {
 
-  @PostMapping("/form")
+  @POST("/form")
   public String handleFormUpload(@RequestParam("name") String name,
-      @RequestParam("file") MultipartFile file) {
+      @RequestParam("file") Part file) throws IOException {
 
     if (!file.isEmpty()) {
-      byte[] bytes = file.getBytes();
+      byte[] bytes = file.getContentAsByteArray();
       // store the bytes somewhere
       return "redirect:uploadSuccess";
     }
@@ -713,7 +865,7 @@ public class FileUploadController {
 默认情况下，所有模型属性都被视为在重定向 URL 中作为 URI 模板变量公开。 在剩余的属性中，原始类型或原始类型的集合或数组会自动附加为查询参数。 如果模型实例是专门为重定向准备的，那么将原始类型属性附加为查询参数可能是预期的结果。 但是，在带注解的控制器中，模型可能包含为渲染目的而添加的附加属性（例如，下拉字段值）。 为了避免此类属性出现在 URL 中的可能性，@RequestMapping 方法可以声明一个 RedirectAttributes 类型的参数，并使用它来指定要提供给 RedirectView 的确切属性。 如果方法进行重定向，则使用 RedirectAttributes 的内容。否则，使用模型的内容。 RequestMappingHandlerAdapter 提供了一个名为 ignoreDefaultModelOnRedirect 的标志， 您可以使用它来指示如果控制
 
 ```java
-@PostMapping("/files/{path}")
+@POST("/files/{path}")
 public String upload(...) {
   // ...
   return "redirect:files/{path}";
@@ -729,7 +881,7 @@ public String upload(...) {
 类似于 @SessionAttribute，你可以使用 @RequestAttribute 注解来访问之前创建的请求属性（这种策略主要用来传递参数） （例如，HandlerInterceptor 创建的）：
 
 ```java
-@GetMapping("/")
+@GET("/")
 public String handle(@RequestAttribute Client client) { // <1>
   // ...
 }
@@ -744,7 +896,7 @@ public String handle(@RequestAttribute Client client) { // <1>
 您可以使用 @RequestBody 注解让请求体通过 HttpMessageConverter 读取并反序列化为 Object。以下示例使用了一个 @RequestBody 参数：
 
 ```java
-@PostMapping("/accounts")
+@POST("/accounts")
 public void handle(@RequestBody Account account) {
   // ...
 }
@@ -759,7 +911,7 @@ public void handle(@RequestBody Account account) {
 您可以使用 @RequestHeader 注解将请求头绑定到控制器中的方法参数。 考虑以下带有请求头的请求： Host localhost:8080 Accept text/html,application/xhtml+xml,application/xml;q=0.9 Accept-Language fr,en-gb;q=0.7,en;q=0.3 Accept-Encoding gzip,deflate Accept-Charset ISO-8859-1,utf-8;q=0.7,*;q=0.7 Keep-Alive 300 以下示例获取 Accept-Encoding 和 Keep-Alive 头的值：
 
 ```java
-@GetMapping("/demo")
+@GET("/demo")
 public void handle(
     @RequestHeader("Accept-Encoding") String encoding, // <1>
     @RequestHeader("Keep-Alive") long keepAlive) { // <2>
@@ -773,7 +925,7 @@ public void handle(
 
 ### 概述
 
-您可以使用 @RequestParam 注解将 Servlet 请求参数（即查询参数或表单数据）绑定到控制器中的方法参数。 以下示例显示了如何执行此操作：
+您可以使用 @RequestParam 注解将 HTTP 请求参数（即查询参数或表单数据）绑定到控制器中的方法参数。 以下示例显示了如何执行此操作：
 
 ```java
 @Controller
@@ -782,7 +934,7 @@ public class EditPetForm {
 
   // ...
 
-  @GetMapping
+  @GET
   public String setupForm(@RequestParam("petId") int petId, Model model) { <1>
     Pet pet = this.clinic.loadPet(petId);
     model.addAttribute("pet", pet);
@@ -803,7 +955,7 @@ public class EditPetForm {
 您可以在方法上使用 @ResponseBody 注解，使返回内容通过 HttpMessageConverter 序列化到响应体。 以下清单显示了一个示例：
 
 ```java
-@GetMapping("/accounts/{id}")
+@GET("/accounts/{id}")
 @ResponseBody
 public Account handle() {
   // ...
@@ -819,7 +971,7 @@ public Account handle() {
 ResponseEntity 类似于 @ResponseBody，但带有状态和头。例如：
 
 ```java
-@GetMapping("/something")
+@GET("/something")
 public ResponseEntity<String> handle() {
   String body = ... ;
   String etag = ... ;
@@ -984,13 +1136,71 @@ Web MVC 提供共享算法的模式用于请求处理，而实际工作由可配
 
 如果在请求映射期间发生异常或从请求处理程序（例如 @Controller）抛出异常，DispatcherHandler 会委托给 HandlerExceptionHandler bean 链来解决异常并提供替代处理，通常是错误响应。 下表列出了可用的 HandlerExceptionHandler 实现：
 
+## 过滤器
+
+> 原文：[`web/webmvc/mvc-core/filters`](https://github.com/TAKETODAY/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-core/filters.adoc)
+
+### 概述
+
+infra.web.Filter 用于在请求进入处理器之前执行检查，或围绕后续处理执行逻辑。 调用 FilterChain.doFilter(HttpContext) 将请求交给后续过滤器和处理器； 不调用过滤链并直接返回，则短路后续处理。 过滤器从 5.0 开始提供，运行在 DispatcherHandler 层，在处理器查找和执行之前介入。 它适合认证检查、限流、维护模式、请求日志和通用请求头处理等不依赖具体控制器的逻辑。 这里的 Filter 是框架的 infra.web.Filter，不是 Servlet 的过滤器接口。
+
+#### 注册与排序
+
+将 Filter 注册为应用上下文中的 Bean 即可。DispatcherHandler 初始化时会自动发现当前上下文 及祖先上下文中的过滤器，并根据 infra.core.annotation.Order 或 infra.core.Ordered 排序。 数值越小的过滤器越先进入；有顺序要求时应显式指定不同的顺序值，不要依赖相同顺序值之间的排列。 可以像下文的认证过滤器一样使用 @Component，也可以通过 @Bean 注册。 Filter 是函数式接口，因此简单逻辑可以使用 Lambda 表达式：
+
+```java
+import infra.context.annotation.Bean;
+import infra.context.annotation.Configuration;
+import infra.core.annotation.Order;
+import infra.web.Filter;
+
+@Configuration
+public class FilterConfiguration {
+
+  @Bean
+  @Order(0)
+  Filter responseHeaderFilter() {
+    return (http, chain) -> {
+      http.setHeader("X-Application", "example");
+      chain.doFilter(http);
+    };
+  }
+}
+```
+
+#### 执行顺序与前后置处理
+
+过滤器通过 doFilter(HttpContext, FilterChain) 处理请求。通常只调用一次 chain.doFilter(http)；重复调用会再次执行下游链，而不是从上次结束的位置继续。 链的终点进入处理器查找、执行及返回值处理。 例如，两个过滤器的顺序值分别为 0 和 10，正常同步执行时顺序如下： 如果前面的过滤器短路，后续过滤器和处理器不会执行。 使用 try/finally 可以在下游调用返回或抛出异常时释放过滤器自己持有的资源：
+
+```java
+@Override
+public void doFilter(HttpContext http, FilterChain chain) throws Exception {
+  long start = System.nanoTime();
+  try {
+    chain.doFilter(http);
+  }
+  finally {
+    long elapsedNanos = System.nanoTime() - start;
+    // 将本次过滤链调用耗时写入指标或日志。
+  }
+}
+```
+
+#### 在过滤器中发送响应
+
+从 5.0 开始，可以通过 HttpContext.send(Object) 发送响应结果，无需注入额外的发送器， 也不需要先匹配控制器方法。该方法复用已配置的返回值处理器和消息转换器。 下面的过滤器在缺少认证信息时发送 JSON 错误响应，否则继续过滤链。 示例仅演示短路响应，实际应用仍需验证凭据的有效性。
+
+#### 结果处理规则
+
+send 将结果原样传给返回值处理器，不会自动包装为 HttpEntity， 也不会强制将所有结果解释为响应体。处理器选择时没有控制器方法元数据， 因此不能依赖控制器方法上的 @ResponseBody 等注解来决定处理方式。 例如，发送纯文本响应体：
+
 ## 拦截
 
 > 原文：[`web/webmvc/mvc-core/handlermapping-interceptor`](https://github.com/TAKETODAY/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-core/handlermapping-interceptor.adoc)
 
 ### 概述
 
-所有 HandlerMapping 实现都支持处理程序拦截器，当您想要将特定功能应用于某些请求（例如，检查主体）时，这些拦截器非常有用。 拦截器必须从 infra.web 包中实现 HandlerInterceptor，该接口具有2个方法， 应提供足够的灵活性来执行各种预处理和后处理： preProcessing(..) 方法返回一个布尔值。您可以使用此方法中断或继续执行链的处理。 当此方法返回 true 时，处理程序执行链继续。 有关如何配置拦截器的示例，请参阅 MVC 配置部分中的 拦截器。 您也可以通过在各个 HandlerMapping 实现上使用 setter 直接注册它们。 postProcessing 方法对于 @ResponseBody 和 ResponseEntity 方法不太有用， 因为这些方法的响应是在 HandlerAdapter 内和 postProcessing
+所有 HandlerMapping 实现都支持处理程序拦截器，当您想要将特定功能应用于某些请求（例如，检查主体）时，这些拦截器非常有用。 拦截器必须从 infra.web 包中实现 HandlerInterceptor，该接口提供以下回调， 应提供足够的灵活性来执行各种预处理和后处理： preProcessing(..) 方法返回一个布尔值。您可以使用此方法中断或继续执行链的处理。 当此方法返回 true 时，处理程序执行链继续。 返回 false 时跳过剩余链和当前拦截器的 postProcessing，拦截器需自行处理响应。 默认实现仅在剩余链正常返回时调用 postProcessing，它不是请求完成回调。 有关如何配置拦截器的示例，请参阅 MVC 配置部分中的 拦截器。 您也可以通过在各个 HandlerMapping 实现上使用 setter 直接注册它们。 对于通常返回的 @R
 
 ## 路径匹配
 
@@ -1006,14 +1216,28 @@ Web MVC 提供共享算法的模式用于请求处理，而实际工作由可配
 
 ### 概述
 
-Infra 架构的大部分都支持国际化，Infra Web MVC 框架也是如此。DispatcherHandler 让您可以使用客户端的区域设置自动解析消息。 这是通过 LocaleResolver 对象完成的。 当请求进来时，DispatcherHandler 会寻找一个区域设置解析器，如果找到，它会尝试使用它来设置区域设置。 通过使用 HttpContext.getLocale() 方法，您始终可以检索由区域设置解析器解析的区域设置。 除了自动区域设置解析之外，您还可以将拦截器附加到处理程序映射 （有关处理程序映射拦截器的更多信息，请参阅 拦截） 以在特定情况下（例如，根据请求中的参数）更改区域设置。 区域设置解析器和拦截器定义在 infra.web.i18n 包中，并以常规方式在您的应用程序上下文中配置。 Infra 中包含以下区域设置解析器选择。
+Infra 架构的大部分都支持国际化，Infra Web MVC 框架也是如此。DispatcherHandler 让您可以使用客户端的区域设置自动解析消息。 这是通过 LocaleResolver 对象完成的。 请求语言偏好和应用最终使用的区域设置是两个不同的概念： HttpContext.getLocale() 按质量权重降序选择具体语言，忽略通配符范围和 q=0 的范围。 请求头缺失、空白或不含可接受的具体语言时返回 null；非法请求头仍会抛出解析异常。 该方法不读取 Cookie、Session 或 LocaleResolver，也不回退到 JVM 默认语言。 它不保证应用支持返回的语言；需要所有语言候选和权重时，使用 request.requestHeaders().getAcceptLanguage()。 应用代码通常应使用 WebUtils.resolveLocale(re
+
+#### Header 解析器
+
+此区域设置解析器检查客户端（例如，Web 浏览器）发送的请求中的 accept-language 头。 通常，此头字段包含客户端操作系统的区域设置。请注意，此解析器不支持时区信息。 默认情况下，AcceptHeaderLocaleResolver 没有限制支持的语言。 可通过 setSupportedLocales(...) 配置候选语言，并通过 setDefaultLocale(...) 配置没有可用请求语言或匹配失败时的默认值：
+
+```java
+@Component(name = LocaleResolver.BEAN_NAME)
+public LocaleResolver mvcLocaleResolver() {
+  AcceptHeaderLocaleResolver resolver = new AcceptHeaderLocaleResolver();
+  resolver.setSupportedLocales(List.of(Locale.CHINESE, Locale.ENGLISH));
+  resolver.setDefaultLocale(Locale.CHINESE);
+  return resolver;
+}
+```
 
 #### Cookie 解析器
 
 此区域设置解析器检查客户端上可能存在的 Cookie，以查看是否指定了 Locale 或 TimeZone。 如果是，它将使用指定的详细信息。通过使用此区域设置解析器的属性，您可以指定 cookie 的名称以及最大寿命。 以下示例定义了一个 CookieLocaleResolver：
 
 ```xml
-<bean id="localeResolver" class="infra.web.i18n.CookieLocaleResolver">
+<bean id="mvcLocaleResolver" class="infra.web.i18n.CookieLocaleResolver">
 
   <property name="cookieName" value="clientlanguage"/>
 
@@ -1025,29 +1249,7 @@ Infra 架构的大部分都支持国际化，Infra Web MVC 框架也是如此。
 
 #### Locale 拦截器
 
-您可以通过将 LocaleChangeInterceptor 添加到 HandlerMapping 定义之一来启用区域设置更改。 它检测请求中的参数并相应地更改区域设置，在调度程序的应用程序上下文中的 LocaleResolver 上调用 setLocale 方法。 下一个示例显示，对包含名为 siteLanguage 参数的所有 *.view 资源的调用现在会更改区域设置。 因此，例如，对 URL https://www.sf.net/home.view?siteLanguage=nl 的请求会将站点语言更改为荷兰语。 以下示例显示了如何拦截区域设置：
-
-```xml
-<bean id="localeChangeInterceptor"
-    class="infra.web.i18n.LocaleChangeInterceptor">
-  <property name="paramName" value="siteLanguage"/>
-</bean>
-
-<bean id="localeResolver"
-    class="infra.web.i18n.CookieLocaleResolver"/>
-
-<bean id="urlMapping"
-    class="infra.web.handler.SimpleUrlHandlerMapping">
-  <property name="interceptors">
-    <list>
-      <ref bean="localeChangeInterceptor"/>
-    </list>
-  </property>
-  <property name="mappings">
-    <value>/**/*.view=someController</value>
-  </property>
-</bean>
-```
+您可以通过将 LocaleChangeInterceptor 添加到 HandlerMapping 定义之一来启用区域设置更改。 它检测请求中的参数并相应地更改区域设置，在调度程序的应用程序上下文中的 LocaleResolver 上调用 setLocale 方法。 也可以通过拦截器的 setLocaleResolver(...) 显式指定解析器。 Cookie 和 Session 策略支持保存语言选择，而 AcceptHeaderLocaleResolver 不支持动态修改，调用其 setLocale 会抛出 UnsupportedOperationException。拦截器更改的是策略中的选择，不是 HttpContext.getLocale() 表示的请求头偏好。 下一个示例显示，对包含名为 siteLanguage 参数的所有 *.view 资源的调用现在会更改区域设置。 因此，例
 
 ## 日志
 
@@ -1063,7 +1265,7 @@ Web MVC 中的 DEBUG 级别日志旨在紧凑、最小且人性化。它专注�
 
 ### 概述
 
-infra.web.multipart 包中的 MultipartParser 是用于解析 multipart 请求（包括文件上传）的策略。 有一个默认的的 infra.web.multipart.parsing.DefaultMultipartParser 实现。底层来源于 （Apache Commons FileUpload） 要启用 multipart 处理，您需要在 IoC 容器声明一个名为 MultipartParser bean。 当接收到内容类型为 multipart/form-data 的 POST 时，解析器会解析内容。
+infra.web.multipart 包中的 MultipartParser 是用于解析 multipart 请求（包括文件上传）的策略。 有一个默认的 infra.web.multipart.parsing.DefaultMultipartParser 实现。底层来源于 （Apache Commons FileUpload） 在使用 Netty 自动配置的 Infra App 应用中，框架会在没有自定义 MultipartParser bean 时注册默认实现， 并将其注入 NettyRequestConfig；自定义解析器按类型提供，无需使用特定 bean 名称。 手动配置 Netty 时，通过 NettyRequestConfig.Builder.multipartParser(...) 指定解析器。 通过 HttpContext.asMultipartRequest() 访问解析
 
 ## Netty 配置
 
@@ -1148,6 +1350,23 @@ Web MVC 定义了 ViewResolver 和 View 接口，让您可以在浏览器中渲�
 
 通过配置 server.http2.enabled=true 开启 server:
 
+## 响应 Trailer
+
+> 原文：[`web/webmvc/mvc-trailers`](https://github.com/TAKETODAY/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-trailers.adoc)
+
+### 概述
+
+当响应元数据只有在正文生产结束后才能确定时，可以通过 HttpContext.setTrailerFields(Trailer...) 注册尾部字段，例如流式计算的摘要或统计信息。Trailer 来自 infra.web，将字段名与延迟求值的 Supplier<String> 绑定。
+
+```java
+@GET("/report")
+public void report(HttpContext context) throws IOException {
+  byte[] body = "report\n".getBytes(StandardCharsets.UTF_8);
+  context.setTrailerFields(Trailer.field("X-Report-Bytes", () -> Integer.toString(body.length)));
+  context.getOutputStream().write(body);
+}
+```
+
 ## URI 链接
 
 > 原文：[`web/webmvc/mvc-uri-building`](https://github.com/TAKETODAY/today-infrastructure/blob/master/infra-docs/modules/ROOT/pages/web/webmvc/mvc-uri-building.adoc)
@@ -1158,14 +1377,14 @@ Web MVC 定义了 ViewResolver 和 View 接口，让您可以在浏览器中渲�
 
 #### 相对 Web 请求
 
-您可以使用 UriComponentsBuilder 创建相对于当前请求的 URI，如下例所示：
+您可以使用 HttpContextUriComponentsBuilder 创建相对于当前请求的 URI，如下例所示：
 
 ```java
-HttpRequest request = ...
+HttpContext request = ...
 
 // 重用 scheme, host, port, path, 和 query string...
 
-URI uri = UriComponentsBuilder.fromRequest(request)
+URI uri = HttpContextUriComponentsBuilder.fromRequest(request)
     .replaceQueryParam("accountId", "{id}")
     .build("123");
 ```
@@ -1179,7 +1398,7 @@ Web MVC 提供了一种机制来准备指向控制器方法的链接。例如，
 @RequestMapping("/hotels/{hotel}")
 public class BookingController {
 
-  @GetMapping("/bookings/{booking}")
+  @GET("/bookings/{booking}")
   public ModelAndView getBooking(@PathVariable Long booking) {
     // ...
   }
